@@ -62,8 +62,7 @@ async function main() {
                   )
                 : 0;
 
-        console.log(`
-Total Commits: ${totalCommits}
+        console.log(`Total Commits: ${totalCommits}
 Contributors: ${authors}
 First Commit: ${firstCommit?.toLocaleDateString()}
 Last Commit: ${lastCommit?.toLocaleDateString()}
