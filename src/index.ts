@@ -2,6 +2,7 @@ import { resolve } from "path";
 import { GitParser } from "./git-parser";
 import { StaticFileServer } from "./static-server";
 import { writeFileSync } from "fs";
+import { dgMain } from "./data-generator";
 
 interface CommitData {
     hash: string;
@@ -128,4 +129,4 @@ Repository Statistics:
     setTimeout(openBrowser, 200);
 }
 
-main().catch(console.error);
+dgMain().then(main().catch(console.error));
