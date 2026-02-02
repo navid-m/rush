@@ -10,6 +10,7 @@ export interface Commit {
     filesChanged: number;
     insertions: number;
     deletions: number;
+    files: string[];
 }
 
 export class GitParser {
@@ -28,15 +29,34 @@ export class GitParser {
         try {
             const format = "%H|%an|%at|%s";
             const logCommand = `git -C "${this.repoPath}" log --all --format="${format}" --shortstat --reverse`;
-
             const output = execSync(logCommand, {
                 encoding: "utf-8",
                 maxBuffer: 10 * 1024 * 1024,
             });
+            const commits = this.parseCommits(output);
 
-            return this.parseCommits(output);
+            for (const commit of commits) {
+                commit.files = this.getFilesForCommit(commit.hash);
+            }
+
+            return commits;
         } catch (error) {
             throw new Error(`Failed to read git history: ${error}`);
+        }
+    }
+
+    private getFilesForCommit(hash: string): string[] {
+        try {
+            const output = execSync(
+                `git -C "${this.repoPath}" diff-tree --no-commit-id --name-only -r ${hash}`,
+                { encoding: "utf-8" },
+            );
+            return output
+                .trim()
+                .split("\n")
+                .filter((f) => f.length > 0);
+        } catch {
+            return [];
         }
     }
 
@@ -63,6 +83,7 @@ export class GitParser {
                     filesChanged: 0,
                     insertions: 0,
                     deletions: 0,
+                    files: [],
                 };
             } else if (currentCommit && line.includes("changed")) {
                 const filesMatch = line.match(/(\d+) files? changed/);

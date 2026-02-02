@@ -58,7 +58,8 @@ export class AnimationServer {
     }
     #animation {
       border: 2px solid #333;
-      box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+      background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
     }
     #controls {
       margin-top: 20px;
@@ -106,26 +107,41 @@ export class AnimationServer {
   </div>
 
   <script>
-    let eventSource = null;
-    
-    function updateFrame() {
-      fetch('/frame')
-        .then(r => r.text())
-        .then(html => {
-          document.getElementById('animation').innerHTML = html;
-        })
-        .catch(err => console.error('Error fetching frame:', err));
+    let animationFrameId = null;
+    let isUpdating = false;
+    let lastUpdateTime = 0;
+    const targetFrameTime = 1000 / 75;
+
+    async function updateFrame() {
+      if (isUpdating) return;
+
+      isUpdating = true;
+
+      try {
+        const response = await fetch('/frame');
+        const html = await response.text();
+        document.getElementById('animation').innerHTML = html;
+      } catch (err) {
+        console.error('Error fetching frame:', err);
+      } finally {
+        isUpdating = false;
+      }
     }
 
     function sendCommand(cmd) {
-      // Commands are handled via keyboard in the terminal
       console.log('Command:', cmd);
     }
 
-    // Update frame every 33ms (30fps)
-    setInterval(updateFrame, 33);
+    function animate(currentTime) {
+      if (currentTime - lastUpdateTime >= targetFrameTime) {
+        updateFrame();
+        lastUpdateTime = currentTime;
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    }
 
-    // Keyboard controls
+    animate(0);
+
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space') {
         e.preventDefault();
@@ -139,7 +155,12 @@ export class AnimationServer {
       }
     });
 
-    // Initial frame
+    window.addEventListener('beforeunload', () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    });
+
     updateFrame();
   </script>
 </body>
