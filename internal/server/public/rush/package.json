@@ -1,0 +1,15 @@
+{
+  "name": "rush",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "make": "bun build index.ts --outfile=dist/index.min.js --minify"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

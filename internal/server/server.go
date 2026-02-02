@@ -13,6 +13,9 @@ import (
 //go:embed public/index.html
 var publicFiles embed.FS
 
+//go:embed public/rush/dist/index.min.js
+var script embed.FS
+
 // StaticFileServer handles serving static files and API endpoints
 type StaticFileServer struct {
 	server    *http.Server
@@ -36,10 +39,11 @@ func (sfs *StaticFileServer) Start() error {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			content, err := publicFiles.ReadFile("public/index.html")
 			if err != nil {
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				http.Error(w, "rush: Internal server error", http.StatusInternalServerError)
 				return
 			}
-
+			scriptContent, err := script.ReadFile("public/rush/dist/index.min.js")
+			content = ([]byte)(strings.ReplaceAll(string(content), "{ { rush_script } }", string(scriptContent)))
 			w.Header().Set("Content-Type", "text/html")
 			w.Write(content)
 			return
