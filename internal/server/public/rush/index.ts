@@ -16,7 +16,7 @@ let hasCompleted = false;
 let edges = [];
 let authorContributionHistory = new Map();
 let languageDistribution = new Map();
-const MAX_PARTICLES = 150;
+const MAX_PARTICLES = 90;
 
 async function init() {
     try {
