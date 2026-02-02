@@ -59,10 +59,8 @@ export class Visualizer {
             .attr("height", this.height)
             .attr("style", "background: #000000");
 
-        // Add a group for 3D transforms
         this.svg.append("g").attr("class", "particles");
 
-        // Add info text
         this.svg
             .append("text")
             .attr("class", "info")
@@ -146,7 +144,6 @@ export class Visualizer {
     }
 
     private render(): string {
-        // Update info text
         const currentCommit = this.commits[this.currentCommitIndex - 1];
         let infoText = `Commits: ${this.currentCommitIndex}/${this.commits.length} | `;
         infoText += `Particles: ${this.particles.length} | `;
@@ -162,23 +159,19 @@ export class Visualizer {
 
         this.svg.select(".info").text(infoText);
 
-        // Sort particles by z-depth for proper rendering
         const sortedParticles = [...this.particles].sort((a, b) => b.z - a.z);
 
-        // Bind data
         const circles = this.svg
             .select(".particles")
             .selectAll("circle")
             .data(sortedParticles, (d: any) => d.id);
 
-        // Enter
         circles
             .enter()
             .append("circle")
             .attr("r", (d: Particle) => d.size)
             .attr("fill", (d: Particle) => d.color);
 
-        // Update
         this.svg
             .select(".particles")
             .selectAll("circle")
@@ -199,7 +192,6 @@ export class Visualizer {
                 return ageFactor * 0.8;
             });
 
-        // Exit
         circles.exit().remove();
 
         return this.svg.node().outerHTML;
@@ -226,7 +218,6 @@ export class Visualizer {
 
         this.frameCount++;
 
-        // Add new commits based on speed
         const commitInterval = Math.floor(30 / this.speed);
         if (
             this.frameCount % commitInterval === 0 &&

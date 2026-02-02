@@ -1,5 +1,3 @@
-#!/usr/bin/env bun
-
 import { resolve } from "path";
 import { GitParser } from "./git-parser";
 import { Visualizer } from "./visualizer";
