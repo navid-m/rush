@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
-  <title>rush - Git Visualization</title>
+  <title>rush</title>
   <style>
     body {
       margin: 0;
@@ -12,6 +13,7 @@
       font-family: 'Courier New', monospace;
       overflow: hidden;
     }
+
     #container {
       display: flex;
       flex-direction: column;
@@ -19,12 +21,14 @@
       justify-content: center;
       min-height: 100vh;
     }
+
     #animation {
       border: 2px solid #333;
       box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
       background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
       will-change: contents;
     }
+
     #controls {
       margin-top: 20px;
       padding: 15px;
@@ -32,6 +36,7 @@
       border: 1px solid #333;
       border-radius: 5px;
     }
+
     button {
       background: #222;
       color: #0ff;
@@ -44,10 +49,12 @@
       border-radius: 3px;
       transition: all 0.2s;
     }
+
     button:hover {
       background: #0ff;
       color: #000;
     }
+
     .key {
       display: inline-block;
       background: #333;
@@ -57,6 +64,7 @@
       font-weight: bold;
       color: #0ff;
     }
+
     #loading {
       position: absolute;
       top: 50%;
@@ -65,6 +73,7 @@
       font-size: 24px;
       color: #0ff;
     }
+
     #stats {
       position: absolute;
       top: 20px;
@@ -75,6 +84,7 @@
       font-size: 14px;
       max-width: 300px;
     }
+
     #current-commit {
       position: absolute;
       bottom: 20px;
@@ -87,12 +97,13 @@
     }
   </style>
 </head>
+
 <body>
   <div id="loading">Loading commit data...</div>
-  
+
   <div id="stats"></div>
   <div id="current-commit"></div>
-  
+
   <div id="container">
     <div id="animation"></div>
     <div id="controls">
@@ -126,23 +137,23 @@
         // Load commit data from JSON file
         const response = await fetch('commits-data.json');
         const data = await response.json();
-        
+
         commits = data.commits;
         generateAuthorColors();
-        
+
         // Setup SVG canvas
         setupSVG();
-        
+
         // Hide loading indicator
         document.getElementById('loading').style.display = 'none';
-        
+
         // Show stats
         updateStats();
-        
+
         // Start animation loop
         lastFrameTime = performance.now();
         animate(lastFrameTime);
-        
+
         // Setup keyboard controls
         setupKeyboardControls();
       } catch (error) {
@@ -157,7 +168,7 @@
         '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
         '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
       ];
-      
+
       authors.forEach((author, i) => {
         authorColors.set(author, colors[i % colors.length]);
       });
@@ -166,22 +177,22 @@
     function setupSVG() {
       const container = document.getElementById('animation');
       container.innerHTML = '';
-      
+
       // Create SVG element
       svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('width', width);
       svg.setAttribute('height', height);
       svg.setAttribute('style', 'background: radial-gradient(circle at center, #0f0f1f 0%, #000000 100%)');
-      
+
       // Add definitions for gradients
       const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
       svg.appendChild(defs);
-      
+
       // Add groups for particles and UI elements
       const particlesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       particlesGroup.setAttribute('class', 'particles');
       svg.appendChild(particlesGroup);
-      
+
       container.appendChild(svg);
     }
 
@@ -292,17 +303,17 @@
       gradient.setAttribute('cx', '30%');
       gradient.setAttribute('cy', '30%');
       gradient.setAttribute('r', '70%');
-      
+
       const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
       stop1.setAttribute('offset', '0%');
       stop1.setAttribute('stop-color', fileColor);
       stop1.setAttribute('stop-opacity', '0.95');
-      
+
       const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
       stop2.setAttribute('offset', '100%');
       stop2.setAttribute('stop-color', authorColor);
       stop2.setAttribute('stop-opacity', '0.85');
-      
+
       gradient.appendChild(stop1);
       gradient.appendChild(stop2);
       defs.appendChild(gradient);
@@ -488,11 +499,11 @@
     function updateStats() {
       const statsDiv = document.getElementById('stats');
       if (!statsDiv) return;
-      
+
       let infoText = `Commits: ${currentCommitIndex}/${commits.length}<br>`;
       infoText += `Files: ${particles.length}<br>`;
       infoText += `Speed: ${speed.toFixed(1)}x<br>`;
-      
+
       if (isPaused) {
         infoText += 'Status: PAUSED';
       } else if (hasCompleted) {
@@ -500,9 +511,9 @@
       } else {
         infoText += 'Status: RUNNING';
       }
-      
+
       statsDiv.innerHTML = infoText;
-      
+
       // Update current commit info
       const commitInfoDiv = document.getElementById('current-commit');
       if (commitInfoDiv && commits[currentCommitIndex - 1]) {
@@ -521,7 +532,7 @@
       if (hasCompleted) {
         return;
       }
-      
+
       if (isPaused) {
         animationFrameId = requestAnimationFrame(animate);
         return;
@@ -563,4 +574,5 @@
     window.addEventListener('load', init);
   </script>
 </body>
+
 </html>
