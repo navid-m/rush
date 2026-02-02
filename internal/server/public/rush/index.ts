@@ -1,5 +1,6 @@
 let commits = [];
 let particles = [];
+let staticOutlines = [];
 let currentCommitIndex = 0;
 let frameCount = 0;
 let isPaused = false;
@@ -15,6 +16,7 @@ let hasCompleted = false;
 let edges = [];
 let authorContributionHistory = new Map();
 let languageDistribution = new Map();
+const MAX_PARTICLES = 150;
 
 async function init() {
     try {
@@ -119,6 +121,7 @@ function changeSpeed(delta) {
 
 function restartAnimation() {
     particles = [];
+    staticOutlines = [];
     edges = [];
     authorContributionHistory = new Map();
     languageDistribution = new Map();
@@ -135,6 +138,22 @@ function createParticlesForCommit(commit) {
     const fileColors = generateFileColors(commit.files);
     const authorColor = authorColors.get(commit.author) || "#ffffff";
     const directoryGroups = new Map();
+
+    if (particles.length >= MAX_PARTICLES) {
+        particles.forEach((p) => {
+            const proj = project3D(p.x, p.y, p.z);
+            staticOutlines.push({
+                x: proj.x,
+                y: proj.y,
+                r: p.size * proj.scale,
+                color: p.color,
+                opacity: 0.6,
+            });
+        });
+
+        particles = [];
+        edges = [];
+    }
 
     commit.files.forEach((filename, i) => {
         const angle = (i / commit.files.length) * Math.PI * 2;
@@ -375,6 +394,21 @@ function render() {
 
     while (particlesGroup.firstChild) {
         particlesGroup.removeChild(particlesGroup.firstChild);
+    }
+
+    for (const outline of staticOutlines) {
+        const circle = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle",
+        );
+        circle.setAttribute("cx", outline.x);
+        circle.setAttribute("cy", outline.y);
+        circle.setAttribute("r", outline.r);
+        circle.setAttribute("fill", "none");
+        circle.setAttribute("stroke", outline.color);
+        circle.setAttribute("stroke-width", "1");
+        circle.setAttribute("opacity", outline.opacity);
+        particlesGroup.appendChild(circle);
     }
 
     const projectedParticles = [];
