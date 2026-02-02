@@ -115,7 +115,6 @@
   </div>
 
   <script>
-    // Global variables for animation state
     let commits = [];
     let particles = [];
     let currentCommitIndex = 0;
@@ -131,30 +130,23 @@
     let height = 800;
     let hasCompleted = false;
 
-    // Initialize the application
     async function init() {
       try {
-        // Load commit data from JSON file
         const response = await fetch('commits-data.json');
         const data = await response.json();
 
         commits = data.commits;
         generateAuthorColors();
 
-        // Setup SVG canvas
         setupSVG();
 
-        // Hide loading indicator
         document.getElementById('loading').style.display = 'none';
 
-        // Show stats
         updateStats();
 
-        // Start animation loop
         lastFrameTime = performance.now();
         animate(lastFrameTime);
 
-        // Setup keyboard controls
         setupKeyboardControls();
       } catch (error) {
         console.error('Error loading commit data:', error);
@@ -178,17 +170,14 @@
       const container = document.getElementById('animation');
       container.innerHTML = '';
 
-      // Create SVG element
       svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('width', width);
       svg.setAttribute('height', height);
       svg.setAttribute('style', 'background: radial-gradient(circle at center, #0f0f1f 0%, #000000 100%)');
 
-      // Add definitions for gradients
       const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
       svg.appendChild(defs);
 
-      // Add groups for particles and UI elements
       const particlesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       particlesGroup.setAttribute('class', 'particles');
       svg.appendChild(particlesGroup);
@@ -256,7 +245,7 @@
           color: createGradientColor(fileColors[i], authorColor),
           size: 6 + Math.random() * 5,
           age: 0,
-          maxAge: 120 + Math.random() * 80,
+          maxAge: Infinity,
           filename: filename.split('/').pop() || filename,
           author: commit.author,
           commitHash: commit.hash,
@@ -292,7 +281,6 @@
     function createGradientColor(fileColor, authorColor) {
       const gradientId = `gradient-${fileColor.replace('#', '').replace(/\./g, '')}-${authorColor.replace('#', '').replace(/\./g, '')}`;
 
-      // Check cache to avoid recreating gradients
       if (gradientCache.has(gradientId)) {
         return `url(#${gradientId})`;
       }
@@ -323,24 +311,17 @@
     }
 
     function updateParticles() {
-      // Batch particle updates for better performance
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
         p.x += p.vx;
         p.y += p.vy;
         p.z += p.vz;
-        p.age++;
-
         p.vy += 0.02;
         p.vx *= 0.99;
         p.vy *= 0.99;
         p.vz *= 0.99;
 
-        // Remove dead particles inline
-        if (p.age >= p.maxAge) {
-          particles.splice(i, 1);
-        }
       }
     }
 
@@ -361,18 +342,15 @@
       const particlesGroup = svg.querySelector('.particles');
       if (!particlesGroup) return;
 
-      // Clear previous particles
       while (particlesGroup.firstChild) {
         particlesGroup.removeChild(particlesGroup.firstChild);
       }
 
-      // Pre-compute all projections and visibility in one pass
       const projectedParticles = [];
 
       for (const p of particles) {
         const proj = project3D(p.x, p.y, p.z);
 
-        // Early culling - skip particles outside view
         if (
           proj.x < -100 ||
           proj.x > width + 100 ||
@@ -382,10 +360,7 @@
           continue;
         }
 
-        const ageFactor = 1 - p.age / p.maxAge;
-        const opacity = ageFactor * 0.9;
-
-        if (opacity <= 0.1) continue;
+        const opacity = 0.9;
 
         projectedParticles.push({
           ...p,
@@ -396,10 +371,8 @@
         });
       }
 
-      // Sort by z-depth for proper layering
       projectedParticles.sort((a, b) => b.z - a.z);
 
-      // Draw circles for particles
       for (const p of projectedParticles) {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', p.projX);
@@ -410,9 +383,8 @@
         particlesGroup.appendChild(circle);
       }
 
-      // Limit labels to young, close particles for performance
       const labelsToShow = projectedParticles.filter(
-        (d) => d.age < 60 && d.projScale > 0.8,
+        (d) => d.projScale > 0.8,
       );
 
       for (const p of labelsToShow) {
@@ -427,39 +399,32 @@
         particlesGroup.appendChild(text);
       }
 
-      // Draw author legend
       drawAuthorLegend();
     }
 
     function drawAuthorLegend() {
       if (!svg) return;
 
-      // Find or create legend group
       let legendGroup = svg.querySelector('.legend');
       if (!legendGroup) {
         legendGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         legendGroup.setAttribute('class', 'legend');
         svg.appendChild(legendGroup);
       } else {
-        // Clear existing legend
         while (legendGroup.firstChild) {
           legendGroup.removeChild(legendGroup.firstChild);
         }
       }
 
-      // Cache active authors to avoid repeated filtering
       const activeAuthors = new Set();
       for (const p of particles) {
-        if (p.age < 60) {
-          activeAuthors.add(p.author);
-        }
+        activeAuthors.add(p.author);
       }
 
       const authors = Array.from(activeAuthors);
       const legendX = width - 200;
       let legendY = 50;
 
-      // Legend title
       const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
       title.setAttribute('x', legendX);
       title.setAttribute('y', legendY);
@@ -472,7 +437,6 @@
 
       legendY += 20;
 
-      // Author entries
       authors.slice(0, 10).forEach((author) => {
         const color = authorColors.get(author) || '#ffffff';
 
@@ -514,7 +478,6 @@
 
       statsDiv.innerHTML = infoText;
 
-      // Update current commit info
       const commitInfoDiv = document.getElementById('current-commit');
       if (commitInfoDiv && commits[currentCommitIndex - 1]) {
         const commit = commits[currentCommitIndex - 1];
@@ -539,12 +502,11 @@
       }
 
       const deltaTime = currentTime - lastFrameTime;
-      const frameInterval = 1000 / (75 * speed); // Target 75 FPS scaled by speed
+      const frameInterval = 1000 / (75 * speed);
 
       if (deltaTime >= frameInterval) {
         frameCount++;
 
-        // Add new particles for commits based on speed
         const commitInterval = Math.floor(30 / speed);
         if (
           frameCount % commitInterval === 0 &&
@@ -558,8 +520,7 @@
         render();
         updateStats();
 
-        // Check if animation is complete
-        if (currentCommitIndex >= commits.length && particles.length === 0) {
+        if (currentCommitIndex >= commits.length) {
           hasCompleted = true;
           updateStats();
         }
@@ -570,7 +531,6 @@
       animationFrameId = requestAnimationFrame(animate);
     }
 
-    // Start the application when the page loads
     window.addEventListener('load', init);
   </script>
 </body>

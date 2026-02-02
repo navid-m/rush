@@ -149,7 +149,7 @@ export class Visualizer {
                 color: this.createGradientColor(fileColors[i], authorColor),
                 size: 6 + Math.random() * 5,
                 age: 0,
-                maxAge: 120 + Math.random() * 80,
+                maxAge: Infinity,
                 filename: filename.split("/").pop() || filename,
                 author: commit.author,
                 commitHash: commit.hash,
@@ -236,16 +236,10 @@ export class Visualizer {
             p.x += p.vx;
             p.y += p.vy;
             p.z += p.vz;
-            p.age++;
-
             p.vy += 0.02;
             p.vx *= 0.99;
             p.vy *= 0.99;
             p.vz *= 0.99;
-
-            if (p.age >= p.maxAge) {
-                this.particles.splice(i, 1);
-            }
         }
     }
 
@@ -281,10 +275,7 @@ export class Visualizer {
                 continue;
             }
 
-            const ageFactor = 1 - p.age / p.maxAge;
-            const opacity = ageFactor * 0.9;
-
-            if (opacity <= 0.1) continue;
+            const opacity = 0.9;
 
             projectedParticles.push({
                 ...p,
@@ -319,7 +310,7 @@ export class Visualizer {
             .attr("opacity", (d: any) => d.opacity);
 
         const labelsToShow = projectedParticles.filter(
-            (d) => d.age < 60 && d.projScale > 0.8,
+            (d) => d.projScale > 0.8,
         );
 
         const texts = particleGroup
@@ -363,9 +354,7 @@ export class Visualizer {
 
         const activeAuthors = new Set<string>();
         for (const p of this.particles) {
-            if (p.age < 60) {
-                activeAuthors.add(p.author);
-            }
+            activeAuthors.add(p.author);
         }
 
         const authors = Array.from(activeAuthors);
@@ -445,9 +434,7 @@ export class Visualizer {
 
         this.updateParticles();
 
-        const completed =
-            this.currentCommitIndex >= this.commits.length &&
-            this.particles.length === 0;
+        const completed = this.currentCommitIndex >= this.commits.length;
 
         return {
             html: this.render(),
