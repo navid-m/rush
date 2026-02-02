@@ -63,7 +63,6 @@ export class GitParser {
     private parseCommits(output: string): Commit[] {
         const commits: Commit[] = [];
         const lines = output.split("\n");
-
         let currentCommit: Partial<Commit> | null = null;
 
         for (const line of lines) {

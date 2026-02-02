@@ -19,7 +19,11 @@ export class AnimationServer {
 
                 if (url.pathname === "/frame") {
                     return new Response(this.currentHTML, {
-                        headers: { "Content-Type": "text/html" },
+                        headers: {
+                            "Content-Type": "text/html",
+                            "Cache-Control":
+                                "no-cache, no-store, must-revalidate",
+                        },
                     });
                 }
 
@@ -60,6 +64,7 @@ export class AnimationServer {
       border: 2px solid #333;
       box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
       background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
+      will-change: contents;
     }
     #controls {
       margin-top: 20px;
@@ -110,7 +115,10 @@ export class AnimationServer {
     let animationFrameId = null;
     let isUpdating = false;
     let lastUpdateTime = 0;
-    const targetFrameTime = 1000 / 75;
+    const targetFrameTime = 1000 / 75; // 75 FPS
+    let frameCount = 0;
+    let lastFPSTime = performance.now();
+    let actualFPS = 0;
 
     async function updateFrame() {
       if (isUpdating) return;
@@ -118,9 +126,24 @@ export class AnimationServer {
       isUpdating = true;
 
       try {
-        const response = await fetch('/frame');
+        const response = await fetch('/frame', {
+          cache: 'no-store'
+        });
         const html = await response.text();
-        document.getElementById('animation').innerHTML = html;
+        
+        const container = document.getElementById('animation');
+        if (container.innerHTML !== html) {
+          container.innerHTML = html;
+        }
+        
+        frameCount++;
+        const now = performance.now();
+        if (now - lastFPSTime >= 1000) {
+          actualFPS = Math.round(frameCount / ((now - lastFPSTime) / 1000));
+          frameCount = 0;
+          lastFPSTime = now;
+          console.log(\`Actual FPS: \${actualFPS}\`);
+        }
       } catch (err) {
         console.error('Error fetching frame:', err);
       } finally {
@@ -140,7 +163,7 @@ export class AnimationServer {
       animationFrameId = requestAnimationFrame(animate);
     }
 
-    animate(0);
+    requestAnimationFrame(animate);
 
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Space') {
@@ -160,8 +183,6 @@ export class AnimationServer {
         cancelAnimationFrame(animationFrameId);
       }
     });
-
-    updateFrame();
   </script>
 </body>
 </html>`;

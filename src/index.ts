@@ -1,7 +1,18 @@
 import { resolve } from "path";
 import { GitParser } from "./git-parser";
-import { Visualizer } from "./visualizer";
-import { AnimationServer } from "./server";
+import { StaticFileServer } from "./static-server";
+import { writeFileSync } from "fs";
+
+interface CommitData {
+    hash: string;
+    author: string;
+    date: string;
+    message: string;
+    filesChanged: number;
+    insertions: number;
+    deletions: number;
+    files: string[];
+}
 
 async function main() {
     console.clear();
@@ -22,113 +33,75 @@ async function main() {
 
     console.log("\x1b[36mAnalyzing commit history...\x1b[0m");
 
-    let commits;
+    let rawCommits;
     try {
-        commits = await parser.getCommits();
+        rawCommits = await parser.getCommits();
     } catch (error) {
         console.error("\x1b[31mError reading commits:\x1b[0m", error);
         process.exit(1);
     }
 
-    if (commits.length === 0) {
+    if (rawCommits.length === 0) {
         console.error("\x1b[31mError:\x1b[0m No commits found in repository");
         process.exit(1);
     }
 
-    console.log(`\x1b[32m\x1b[0m Found ${commits.length} commits\n`);
+    console.log(`\x1b[32m✓\x1b[0m Found ${rawCommits.length} commits\n`);
 
-    const visualizer = new Visualizer(commits);
+    const commits: CommitData[] = rawCommits.map((commit) => ({
+        ...commit,
+        date: commit.date.toISOString(),
+    }));
 
-    console.log(visualizer.getStats());
+    const totalCommits = commits.length;
+    const authors = new Set(commits.map((c) => c.author)).size;
+    const firstCommit = new Date(commits[0]?.date);
+    const lastCommit = new Date(commits[commits.length - 1]?.date);
+    const duration =
+        lastCommit && firstCommit
+            ? Math.floor(
+                  (lastCommit.getTime() - firstCommit.getTime()) /
+                      (1000 * 60 * 60 * 24),
+              )
+            : 0;
 
-    console.log("\x1b[36mStarting animation server...\x1b[0m");
-    const server = new AnimationServer();
+    console.log(`
+Repository Statistics:
+  Total Commits: ${totalCommits}
+  Contributors: ${authors}
+  First Commit: ${firstCommit?.toLocaleDateString()}
+  Last Commit: ${lastCommit?.toLocaleDateString()}
+  Duration: ${duration} days
+`);
+
+    const jsonData = {
+        commits: commits,
+        metadata: {
+            totalCommits: commits.length,
+            authors: [...new Set(commits.map((c) => c.author))],
+            firstCommitDate: commits[0]?.date,
+            lastCommitDate: commits[commits.length - 1]?.date,
+        },
+    };
+
+    writeFileSync("./commits-data.json", JSON.stringify(jsonData, null, 2));
+    console.log("\x1b[32m✓\x1b[0m Commit data saved to commits-data.json");
+
+    console.log("\x1b[36mStarting static file server...\x1b[0m");
+    const server = new StaticFileServer();
     const port = await server.start();
 
     console.log(
-        `\x1b[32m\x1b[0m Server running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
+        `\x1b[32m✓\x1b[0m Server running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
     );
-    console.log("\x1b[33mControls:\x1b[0m");
-    console.log("  SPACE     - Pause/Resume animation");
-    console.log("  +         - Increase speed");
-    console.log("  -         - Decrease speed");
-    console.log("  R         - Restart animation");
-    console.log("  Ctrl+C    - Exit\n");
-
-    if (process.stdin.isTTY) {
-        process.stdin.setRawMode(true);
-        process.stdin.resume();
-        process.stdin.setEncoding("utf8");
-
-        process.stdin.on("data", (key: string) => {
-            if (key === "\u0003") {
-                console.log("\n\n\x1b[36mShutting down...\x1b[0m");
-                server.stop();
-                process.exit(0);
-            }
-
-            if (key === " ") {
-                visualizer.togglePause();
-            }
-
-            if (key === "+" || key === "=") {
-                const currentSpeed = visualizer["speed"];
-                visualizer.setSpeed(currentSpeed + 0.5);
-                console.log(
-                    `\x1b[33mSpeed:\x1b[0m ${visualizer["speed"].toFixed(1)}x`,
-                );
-            }
-
-            if (key === "-" || key === "_") {
-                const currentSpeed = visualizer["speed"];
-                visualizer.setSpeed(currentSpeed - 0.5);
-                console.log(
-                    `\x1b[33mSpeed:\x1b[0m ${visualizer["speed"].toFixed(1)}x`,
-                );
-            }
-
-            if (key.toLowerCase() === "r") {
-                visualizer.restart();
-                hasCompleted = false;
-                console.log("\x1b[36mAnimation restarted\x1b[0m");
-            }
-        });
-    }
-
-    let frameCount = 0;
-    const fps = 75;
-    const frameTime = 1000 / fps;
-
-    console.log("\x1b[32mAnimation started\x1b[0m");
-
-    let hasCompleted = false;
-    const interval = setInterval(() => {
-        const { html, completed } = visualizer.update();
-        server.updateFrame(html);
-
-        frameCount++;
-
-        if (frameCount % fps === 0 && !completed) {
-            const progress =
-                (visualizer["currentCommitIndex"] / commits.length) * 100;
-            const files = visualizer["particles"].length;
-
-            process.stdout.write(
-                `\r\x1b[K\x1b[36mProgress:\x1b[0m ${progress.toFixed(1)}% | ` +
-                    `\x1b[36mCommit:\x1b[0m ${visualizer["currentCommitIndex"]}/${commits.length} | ` +
-                    `\x1b[36mFiles:\x1b[0m ${files}`,
-            );
-        }
-
-        if (completed && !hasCompleted) {
-            hasCompleted = true;
-            console.log("\n\n\x1b[32mAnimation complete.\x1b[0m");
-            console.log("Press R to restart or Ctrl+C to exit");
-        }
-    }, frameTime);
+    console.log(
+        "\x1b[33mOpen your browser to the URL above to view the visualization.\x1b[0m",
+    );
+    console.log(
+        "The visualization runs entirely in the browser with no further server communication.\n",
+    );
 
     process.on("SIGINT", () => {
-        clearInterval(interval);
         console.log("\n\n\x1b[36mShutting down...\x1b[0m");
         server.stop();
         process.exit(0);
@@ -147,7 +120,7 @@ async function main() {
             try {
                 await Bun.$`${command}`.quiet();
             } catch {
-                // Ignore.
+                // Ignore browser open errors
             }
         }
     };

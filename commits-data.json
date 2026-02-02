@@ -1,0 +1,123 @@
+{
+  "commits": [
+    {
+      "hash": "36a652edbb0f6ced7d918d3b8d9a748bfa7a92b2",
+      "author": "Navid M",
+      "date": "2026-02-02T14:10:58.000Z",
+      "message": "init",
+      "filesChanged": 9,
+      "insertions": 962,
+      "deletions": 0,
+      "files": []
+    },
+    {
+      "hash": "3851714e1754b0f533c2e8c15ea084a61541f8c4",
+      "author": "Navid M",
+      "date": "2026-02-02T14:12:12.000Z",
+      "message": "fmt",
+      "filesChanged": 3,
+      "insertions": 1,
+      "deletions": 18,
+      "files": [
+        "src/git-parser.ts",
+        "src/index.ts",
+        "src/visualizer.ts"
+      ]
+    },
+    {
+      "hash": "ddc9c6ce7c85cfbe8d1aa6deb5d8d9d72dcec17e",
+      "author": "Navid M",
+      "date": "2026-02-02T14:12:34.000Z",
+      "message": "amend",
+      "filesChanged": 1,
+      "insertions": 1,
+      "deletions": 13,
+      "files": [
+        "README.md"
+      ]
+    },
+    {
+      "hash": "64530a47904215771bbe592e03bfbb1d6f7875eb",
+      "author": "Navid M",
+      "date": "2026-02-02T14:27:23.000Z",
+      "message": "amend",
+      "filesChanged": 4,
+      "insertions": 271,
+      "deletions": 65,
+      "files": [
+        "src/git-parser.ts",
+        "src/index.ts",
+        "src/server.ts",
+        "src/visualizer.ts"
+      ]
+    },
+    {
+      "hash": "abd55776c4b98e50f86dfbde3e200bb4086ab7fa",
+      "author": "Navid M",
+      "date": "2026-02-02T14:27:44.000Z",
+      "message": "amend filepath",
+      "filesChanged": 1,
+      "insertions": 1,
+      "deletions": 1,
+      "files": [
+        "package.json"
+      ]
+    },
+    {
+      "hash": "0f3ab3fe54ec7ca737476325e5f0013880e13181",
+      "author": "Navid M",
+      "date": "2026-02-02T14:28:30.000Z",
+      "message": "make more clear",
+      "filesChanged": 1,
+      "insertions": 2,
+      "deletions": 2,
+      "files": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "hash": "8966967b599c3b1fb8d1a99a1c29c6a98bbcafd5",
+      "author": "Navid M",
+      "date": "2026-02-02T14:28:51.000Z",
+      "message": "and again",
+      "filesChanged": 1,
+      "insertions": 1,
+      "deletions": 1,
+      "files": [
+        "src/index.ts"
+      ]
+    },
+    {
+      "hash": "50c923a071c82ac79c84f26064318f007adbe5ba",
+      "author": "Navid M",
+      "date": "2026-02-02T14:35:49.000Z",
+      "message": "color fixes",
+      "filesChanged": 1,
+      "insertions": 80,
+      "deletions": 14,
+      "files": [
+        "src/visualizer.ts"
+      ]
+    },
+    {
+      "hash": "94d4139efe279530b74d5ec20b4c7433137edb05",
+      "author": "Navid M",
+      "date": "2026-02-02T14:36:11.000Z",
+      "message": "amend",
+      "filesChanged": 1,
+      "insertions": 1,
+      "deletions": 1,
+      "files": [
+        "src/server.ts"
+      ]
+    }
+  ],
+  "metadata": {
+    "totalCommits": 9,
+    "authors": [
+      "Navid M"
+    ],
+    "firstCommitDate": "2026-02-02T14:10:58.000Z",
+    "lastCommitDate": "2026-02-02T14:36:11.000Z"
+  }
+}

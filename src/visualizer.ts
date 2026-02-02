@@ -20,6 +20,13 @@ interface Particle {
     fileColor: string;
 }
 
+interface ProjectedParticle extends Particle {
+    projX: number;
+    projY: number;
+    projScale: number;
+    opacity: number;
+}
+
 export class Visualizer {
     private width = 1200;
     private height = 800;
@@ -32,6 +39,7 @@ export class Visualizer {
     private dom: JSDOM;
     private svg: any;
     private authorColors: Map<string, string>;
+    private gradientCache: Set<string> = new Set();
 
     constructor(commits: Commit[]) {
         this.commits = commits;
@@ -193,8 +201,8 @@ export class Visualizer {
         authorColor: string,
     ): string {
         const gradientId = `gradient-${fileColor.replace("#", "")}-${authorColor.replace("#", "")}`;
-        const existingGradient = this.svg.select(`#${gradientId}`);
-        if (!existingGradient.empty()) {
+
+        if (this.gradientCache.has(gradientId)) {
             return `url(#${gradientId})`;
         }
 
@@ -217,11 +225,12 @@ export class Visualizer {
             .attr("stop-color", authorColor)
             .attr("stop-opacity", "0.85");
 
+        this.gradientCache.add(gradientId);
         return `url(#${gradientId})`;
     }
 
     private updateParticles(): void {
-        for (let i = 0; i < this.particles.length; i++) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
 
             p.x += p.vx;
@@ -233,9 +242,11 @@ export class Visualizer {
             p.vx *= 0.99;
             p.vy *= 0.99;
             p.vz *= 0.99;
-        }
 
-        this.particles = this.particles.filter((p) => p.age < p.maxAge);
+            if (p.age >= p.maxAge) {
+                this.particles.splice(i, 1);
+            }
+        }
     }
 
     private render(): string {
@@ -256,67 +267,64 @@ export class Visualizer {
 
         this.svg.select(".info").text(infoText);
 
-        const sortedParticles = [...this.particles].sort((a, b) => b.z - a.z);
+        const projectedParticles: ProjectedParticle[] = [];
 
-        const visibleParticles = sortedParticles.filter((p) => {
+        for (const p of this.particles) {
             const proj = this.project3D(p.x, p.y, p.z);
-            return (
-                proj.x > -100 &&
-                proj.x < this.width + 100 &&
-                proj.y > -100 &&
-                proj.y < this.height + 100
-            );
-        });
+
+            if (
+                proj.x < -100 ||
+                proj.x > this.width + 100 ||
+                proj.y < -100 ||
+                proj.y > this.height + 100
+            ) {
+                continue;
+            }
+
+            const ageFactor = 1 - p.age / p.maxAge;
+            const opacity = ageFactor * 0.9;
+
+            if (opacity <= 0.1) continue;
+
+            projectedParticles.push({
+                ...p,
+                projX: proj.x,
+                projY: proj.y,
+                projScale: proj.scale,
+                opacity,
+            });
+        }
+
+        projectedParticles.sort((a, b) => b.z - a.z);
 
         const particleGroup = this.svg.select(".particles");
+
         const circles = particleGroup
             .selectAll("circle")
-            .data(visibleParticles, (d: Particle) => d.id);
+            .data(projectedParticles, (d: any) => d.id);
 
         circles.exit().remove();
 
         const newCircles = circles
             .enter()
             .append("circle")
-            .attr("cx", 0)
-            .attr("cy", 0)
-            .attr("r", 0)
-            .attr("fill", (d) => d.color)
-            .attr("opacity", 0)
-            .attr("stroke", "#fff")
-            .attr("stroke-width", 0)
-            .attr("stroke-opacity", 0);
+            .attr("fill", (d: any) => d.color)
+            .attr("stroke", "none");
 
         circles
             .merge(newCircles)
-            .attr("cx", (d: Particle) => {
-                const proj = this.project3D(d.x, d.y, d.z);
-                return proj.x;
-            })
-            .attr("cy", (d: Particle) => {
-                const proj = this.project3D(d.x, d.y, d.z);
-                return proj.y;
-            })
-            .attr("r", (d: Particle) => {
-                const proj = this.project3D(d.x, d.y, d.z);
-                return d.size * proj.scale;
-            })
-            .attr("fill", (d: Particle) => d.color)
-            .attr("opacity", (d: Particle) => {
-                const ageFactor = 1 - d.age / d.maxAge;
-                const opacity = ageFactor * 0.9;
-                return opacity > 0.1 ? opacity : 0;
-            })
-            .attr("stroke", "none")
-            .attr("stroke-width", 0)
-            .attr("stroke-opacity", 0);
+            .attr("cx", (d: any) => d.projX)
+            .attr("cy", (d: any) => d.projY)
+            .attr("r", (d: any) => d.size * d.projScale)
+            .attr("opacity", (d: any) => d.opacity);
 
-        const texts = particleGroup.selectAll("text.label").data(
-            visibleParticles.filter(
-                (d) => d.age < 60 && this.project3D(d.x, d.y, d.z).scale > 0.8,
-            ),
-            (d: Particle) => d.id,
+        const labelsToShow = projectedParticles.filter(
+            (d) => d.age < 60 && d.projScale > 0.8,
         );
+
+        const texts = particleGroup
+            .selectAll("text.label")
+            .data(labelsToShow, (d: any) => d.id);
 
         texts.exit().remove();
 
@@ -324,34 +332,19 @@ export class Visualizer {
             .enter()
             .append("text")
             .attr("class", "label")
-            .attr("x", 0)
-            .attr("y", 0)
-            .attr("fill", (d) => d.color)
-            .attr("opacity", 0)
-            .attr("font-size", "0px")
             .attr("font-family", "monospace")
-            .text((d) => d.filename);
+            .text((d: any) => d.filename);
 
         texts
             .merge(newTexts)
-            .attr("x", (d: Particle) => {
-                const proj = this.project3D(d.x, d.y, d.z);
-                return proj.x + (d.size + 2) * proj.scale;
-            })
-            .attr("y", (d: Particle) => {
-                const proj = this.project3D(d.x, d.y, d.z);
-                return proj.y - (d.size + 2) * proj.scale;
-            })
-            .attr("fill", (d: Particle) => d.fileColor)
-            .attr("opacity", (d: Particle) => {
-                const ageFactor = 1 - d.age / d.maxAge;
-                const opacity = ageFactor * 0.9;
-                return opacity > 0.1 ? opacity * 0.8 : 0;
-            })
-            .attr("font-size", (d: Particle) => {
-                const proj = this.project3D(d.x, d.y, d.z);
-                return Math.max(8, 10 * proj.scale) + "px";
-            });
+            .attr("x", (d: any) => d.projX + (d.size + 2) * d.projScale)
+            .attr("y", (d: any) => d.projY - (d.size + 2) * d.projScale)
+            .attr("fill", (d: any) => d.fileColor)
+            .attr("opacity", (d: any) => d.opacity * 0.8)
+            .attr(
+                "font-size",
+                (d: any) => Math.max(8, 10 * d.projScale) + "px",
+            );
 
         this.drawAuthorLegend();
 
@@ -368,9 +361,12 @@ export class Visualizer {
 
         legend.selectAll("*").remove();
 
-        const activeAuthors = new Set(
-            this.particles.filter((p) => p.age < 60).map((p) => p.author),
-        );
+        const activeAuthors = new Set<string>();
+        for (const p of this.particles) {
+            if (p.age < 60) {
+                activeAuthors.add(p.author);
+            }
+        }
 
         const authors = Array.from(activeAuthors);
         const legendX = this.width - 200;
