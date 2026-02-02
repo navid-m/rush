@@ -20,6 +20,10 @@ make all
 
 <img src=".github/screenshot.png">
 
+## Demonstration video
+
+Can be found [here](https://streamable.com/4youal)
+
 ---
 
 &copy; Navid M - GPL 3.0
