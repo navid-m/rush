@@ -1,3 +1,5 @@
+const MAX_PARTICLES = 90;
+
 let commits = [];
 let particles = [];
 let staticOutlines = [];
@@ -16,7 +18,7 @@ let hasCompleted = false;
 let edges = [];
 let authorContributionHistory = new Map();
 let languageDistribution = new Map();
-const MAX_PARTICLES = 90;
+let uniqueFilesSet = new Set();
 
 async function init() {
     try {
@@ -130,6 +132,7 @@ function restartAnimation() {
     hasCompleted = false;
     isPaused = false;
     lastFrameTime = performance.now();
+    uniqueFilesSet = new Set();
     animate(lastFrameTime);
     updateStats();
 }
@@ -202,6 +205,10 @@ function createParticlesForCommit(commit) {
             }
         }
     }
+
+    commit.files.forEach((filename) => {
+        uniqueFilesSet.add(filename);
+    });
 
     updateAuthorContributionHistory(commit.author);
     updateLanguageDistribution(commit);
@@ -785,7 +792,7 @@ function updateStats() {
     if (!statsDiv) return;
 
     let infoText = `Commits: ${currentCommitIndex}/${commits.length}<br>`;
-    infoText += `Files: ${particles.length}<br>`;
+    infoText += `Files: ${uniqueFilesSet.size}<br>`;
     infoText += `Speed: ${speed.toFixed(1)}x<br>`;
 
     if (isPaused) {
