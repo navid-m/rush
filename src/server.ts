@@ -39,7 +39,7 @@ export class AnimationServer {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Git Rush - Repository Visualization</title>
+  <title>rush</title>
   <style>
     body {
       margin: 0;
