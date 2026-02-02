@@ -420,7 +420,7 @@
             const dz = p2.z - p1.z;
             const distanceSquared = dx * dx + dy * dy + dz * dz;
 
-            const minDistance = (p1.size + p2.size) * 1.5;
+            const minDistance = (p1.size + p2.size) * 4;
             if (distanceSquared < minDistance * minDistance) {
               const distance = Math.sqrt(distanceSquared);
               if (distance === 0) {
