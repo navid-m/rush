@@ -46,7 +46,7 @@ async function main() {
         process.exit(1);
     }
 
-    console.log(`\x1b[32m✓\x1b[0m Found ${rawCommits.length} commits\n`);
+    console.log(`\x1b[32m\x1b[0m Found ${rawCommits.length} commits\n`);
 
     const commits: CommitData[] = rawCommits.map((commit) => ({
         ...commit,
@@ -85,14 +85,14 @@ Repository Statistics:
     };
 
     writeFileSync("./commits-data.json", JSON.stringify(jsonData, null, 2));
-    console.log("\x1b[32m✓\x1b[0m Commit data saved to commits-data.json");
+    console.log("\x1b[32m\x1b[0m Commit data saved to commits-data.json");
 
     console.log("\x1b[36mStarting static file server...\x1b[0m");
     const server = new StaticFileServer();
     const port = await server.start();
 
     console.log(
-        `\x1b[32m✓\x1b[0m Server running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
+        `\x1b[32m\x1b[0m Server running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
     );
     console.log(
         "\x1b[33mOpen your browser to the URL above to view the visualization.\x1b[0m",

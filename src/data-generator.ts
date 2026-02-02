@@ -70,7 +70,7 @@ export class DataGenerator {
             process.exit(1);
         }
 
-        console.log(`\x1b[32m✓\x1b[0m Found ${this.commits.length} commits\n`);
+        console.log(`\x1b[32m\x1b[0m Found ${this.commits.length} commits\n`);
 
         const jsonData = {
             commits: this.commits,
@@ -83,7 +83,7 @@ export class DataGenerator {
         };
 
         writeFileSync("commits-data.json", JSON.stringify(jsonData, null, 2));
-        console.log("\x1b[32m✓\x1b[0m Commit data saved to commits-data.json");
+        console.log("\x1b[32m\x1b[0m Commit data saved to commits-data.json");
     }
 }
 
