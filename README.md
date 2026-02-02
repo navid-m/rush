@@ -19,3 +19,7 @@ make all
 ## Screenshot
 
 <img src=".github/screenshot.png">
+
+---
+
+&copy; Navid M - GPL 3.0
