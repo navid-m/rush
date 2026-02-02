@@ -20,7 +20,7 @@ async function main() {
     const args = process.argv.slice(2);
     const repoPath = args.length > 0 ? resolve(args[0]) : process.cwd();
 
-    console.log(`\x1b[33mRepository:\x1b[0m ${repoPath}\n`);
+    console.log(`\x1b[31mRepository:\x1b[0m ${repoPath}\n`);
 
     const parser = new GitParser(repoPath);
 
@@ -31,8 +31,6 @@ async function main() {
         console.log("  rush /path/to/repo  # Specific repository");
         process.exit(1);
     }
-
-    console.log("\x1b[36mAnalyzing commit history...\x1b[0m");
 
     let rawCommits;
     try {
@@ -46,8 +44,6 @@ async function main() {
         console.error("\x1b[31mError:\x1b[0m No commits found in repository");
         process.exit(1);
     }
-
-    console.log(`\x1b[32m\x1b[0m Found ${rawCommits.length} commits\n`);
 
     const commits: CommitData[] = rawCommits.map((commit) => ({
         ...commit,
@@ -67,12 +63,11 @@ async function main() {
             : 0;
 
     console.log(`
-Repository Statistics:
-  Total Commits: ${totalCommits}
-  Contributors: ${authors}
-  First Commit: ${firstCommit?.toLocaleDateString()}
-  Last Commit: ${lastCommit?.toLocaleDateString()}
-  Duration: ${duration} days
+Total Commits: ${totalCommits}
+Contributors: ${authors}
+First Commit: ${firstCommit?.toLocaleDateString()}
+Last Commit: ${lastCommit?.toLocaleDateString()}
+Duration: ${duration} days
 `);
 
     const jsonData = {
@@ -86,24 +81,15 @@ Repository Statistics:
     };
 
     writeFileSync("./commits-data.json", JSON.stringify(jsonData, null, 2));
-    console.log("\x1b[32m\x1b[0m Commit data saved to commits-data.json");
 
-    console.log("\x1b[36mStarting static file server...\x1b[0m");
     const server = new StaticFileServer();
     const port = await server.start();
 
     console.log(
-        `\x1b[32m\x1b[0m Server running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
+        `\x1b[32m\x1b[0mServer running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
     );
-    console.log(
-        "\x1b[33mOpen your browser to the URL above to view the visualization.\x1b[0m",
-    );
-    console.log(
-        "The visualization runs entirely in the browser with no further server communication.\n",
-    );
-
     process.on("SIGINT", () => {
-        console.log("\n\n\x1b[36mShutting down...\x1b[0m");
+        console.log("Bye");
         server.stop();
         process.exit(0);
     });

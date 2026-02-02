@@ -40,7 +40,7 @@ export class DataGenerator {
     }
 
     async generateData(): Promise<void> {
-        console.log(`\x1b[33mRepository:\x1b[0m ${this.repoPath}\n`);
+        console.log(`\x1b[31mRepository:\x1b[0m ${this.repoPath}\n`);
 
         const parser = new GitParser(this.repoPath);
 
@@ -48,8 +48,6 @@ export class DataGenerator {
             console.error("\x1b[31mError:\x1b[0m Not a valid git repository");
             process.exit(1);
         }
-
-        console.log("\x1b[36mAnalyzing commit history...\x1b[0m");
 
         try {
             const rawCommits = await parser.getCommits();
@@ -65,12 +63,12 @@ export class DataGenerator {
 
         if (this.commits.length === 0) {
             console.error(
-                "\x1b[31mError:\x1b[0m No commits found in repository",
+                "\x1b[31mError:\x1b[0mNo commits found in repository",
             );
             process.exit(1);
         }
 
-        console.log(`\x1b[32m\x1b[0m Found ${this.commits.length} commits\n`);
+        console.log(`\x1b[32m\x1b[0mFound ${this.commits.length} commits\n`);
 
         const jsonData = {
             commits: this.commits,
@@ -83,7 +81,7 @@ export class DataGenerator {
         };
 
         writeFileSync("commits-data.json", JSON.stringify(jsonData, null, 2));
-        console.log("\x1b[32m\x1b[0m Commit data saved to commits-data.json");
+        console.log("\x1b[32m\x1b[0mCommit data saved to commits-data.json");
     }
 }
 
