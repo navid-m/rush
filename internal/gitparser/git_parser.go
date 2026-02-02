@@ -52,6 +52,66 @@ func (gp *GitParser) IsValidRepo() bool {
 
 // GetCommits retrieves all commits from the repository
 func (gp *GitParser) GetCommits() ([]Commit, error) {
+	commitCount, err := gp.countCommits()
+	if err != nil {
+		return nil, fmt.Errorf("failed to count commits: %v", err)
+	}
+	const largeRepoThreshold = 100000
+	if commitCount > largeRepoThreshold {
+		fmt.Printf("Large repository detected (%d commits), using optimized approach\n", commitCount)
+		return gp.getCommitsOptimized()
+	} else {
+		return gp.getCommitsFull()
+	}
+}
+
+// countCommits counts the total number of commits in the repository
+func (gp *GitParser) countCommits() (int, error) {
+	var output []byte
+	var err error
+
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("git", "-C", gp.repoPath, "rev-list", "--count", "--all")
+		output, err = cmd.Output()
+	} else {
+		cmd := exec.Command("git", "-C", gp.repoPath, "rev-list", "--count", "--all")
+		output, err = cmd.Output()
+	}
+
+	if err != nil {
+		return 0, err
+	}
+
+	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
+// getCommitsOptimized retrieves commits with minimal data for large repositories
+func (gp *GitParser) getCommitsOptimized() ([]Commit, error) {
+	var output []byte
+	var err error
+
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("git", "-C", gp.repoPath, "log", "--all", "--format=%H|%an|%at|%s", "--name-only", "--reverse")
+		output, err = cmd.Output()
+	} else {
+		cmd := exec.Command("git", "-C", gp.repoPath, "log", "--all", "--format=%H|%an|%at|%s", "--name-only", "--reverse")
+		output, err = cmd.Output()
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to read git history: %v", err)
+	}
+
+	return gp.parseCommitsWithNameOnly(string(output)), nil
+}
+
+// getCommitsFull retrieves commits with full data for smaller repositories
+func (gp *GitParser) getCommitsFull() ([]Commit, error) {
 	var output []byte
 	var err error
 
@@ -68,6 +128,59 @@ func (gp *GitParser) GetCommits() ([]Commit, error) {
 	}
 
 	return gp.parseCommitsWithNumStat(string(output)), nil
+}
+
+// parseCommitsWithNameOnly parses the git log output with name-only into Commit structs
+func (gp *GitParser) parseCommitsWithNameOnly(output string) []Commit {
+	lines := strings.Split(output, "\n")
+	commits := []Commit{}
+	var currentCommit *Commit
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if strings.Count(line, "|") >= 3 {
+			parts := strings.Split(line, "|")
+			if len(parts) >= 4 {
+				_, err := strconv.ParseInt(parts[2], 10, 64)
+				if err == nil {
+					if currentCommit != nil {
+						commits = append(commits, *currentCommit)
+					}
+
+					timestamp, _ := strconv.ParseInt(parts[2], 10, 64)
+
+					currentCommit = &Commit{
+						Hash:         parts[0],
+						Author:       parts[1],
+						Date:         time.Unix(timestamp, 0),
+						Message:      parts[3],
+						FilesChanged: 0,
+						Insertions:   0,
+						Deletions:    0,
+						Files:        []string{},
+					}
+					continue
+				}
+			}
+		}
+
+		if currentCommit != nil && line != "" {
+			if !strings.HasPrefix(line, "commit ") && !strings.HasPrefix(line, "Merge:") && !strings.HasPrefix(line, "Author:") && !strings.HasPrefix(line, "Date:") {
+				currentCommit.Files = append(currentCommit.Files, line)
+				currentCommit.FilesChanged++
+			}
+		}
+	}
+
+	if currentCommit != nil {
+		commits = append(commits, *currentCommit)
+	}
+
+	return commits
 }
 
 // parseCommitsWithNumStat parses the git log output with numstat into Commit structs
