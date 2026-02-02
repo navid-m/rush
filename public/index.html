@@ -314,14 +314,49 @@
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
+        p.vy += 0.02;
         p.x += p.vx;
         p.y += p.vy;
         p.z += p.vz;
-        p.vy += 0.02;
         p.vx *= 0.99;
         p.vy *= 0.99;
         p.vz *= 0.99;
 
+        const proj = project3D(p.x, p.y, p.z);
+        const groundLevel = height;
+        const particleRadius = p.size * proj.scale;
+
+        if (proj.y + particleRadius > groundLevel) {
+          p.y = (groundLevel - particleRadius - height / 2) / proj.scale;
+
+          p.vy = -p.vy * 0.7;
+          p.vx *= 0.9;
+          p.vz *= 0.9;
+        }
+
+        if (proj.y - particleRadius < 0) {
+          p.y = (particleRadius - height / 2) / proj.scale;
+          p.vy = -p.vy * 0.7;
+        }
+
+        if (proj.x - particleRadius < 0 || proj.x + particleRadius > width) {
+          if (proj.x - particleRadius < 0) {
+            p.x = (-width / 2 - particleRadius) / proj.scale;
+          } else {
+            p.x = (width / 2 - particleRadius) / proj.scale;
+          }
+          p.vx = -p.vx * 0.7;
+        }
+
+        const maxZ = 400;
+        if (p.z < -maxZ || p.z > maxZ) {
+          if (p.z < -maxZ) {
+            p.z = -maxZ;
+          } else {
+            p.z = maxZ;
+          }
+          p.vz = -p.vz * 0.7;
+        }
       }
     }
 
