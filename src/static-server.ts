@@ -1,4 +1,5 @@
 import type { Server } from "bun";
+import html from "../public/index.html?raw";
 
 export class StaticFileServer {
     private server: Server | null = null;
@@ -26,26 +27,9 @@ export class StaticFileServer {
                 const url = new URL(request.url);
 
                 if (url.pathname === "/" || url.pathname === "/index.html") {
-                    try {
-                        const file: Bun.BunFile = Bun.file(
-                            "./public/index.html",
-                        );
-                        const exists: boolean = await file.exists();
-
-                        if (exists) {
-                            return new Response(await file.text(), {
-                                headers: { "Content-Type": "text/html" },
-                            });
-                        } else {
-                            return new Response("Main page not found", {
-                                status: 404,
-                            });
-                        }
-                    } catch (error: Error) {
-                        return new Response("Internal server error", {
-                            status: 500,
-                        });
-                    }
+                    return new Response(html, {
+                        headers: { "Content-Type": "text/html" },
+                    });
                 }
 
                 if (url.pathname === "/commits-data.json") {
