@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start": "bun run src/index.ts",
-    "generate": "bun run src/data-generator.ts"
+    "generate": "bun run src/data-generator.ts",
+    "make": "bun build ./src/index.ts --compile --outfile rush"
   },
   "devDependencies": {
     "@types/bun": "latest"
