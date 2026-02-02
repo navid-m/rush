@@ -46,7 +46,7 @@ async function main() {
     const port = await server.start();
 
     console.log(
-        `\x1b[32m✓\x1b[0m Server running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
+        `\x1b[32m\x1b[0m Server running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
     );
     console.log("\x1b[33mControls:\x1b[0m");
     console.log("  SPACE     - Pause/Resume animation");
@@ -99,7 +99,7 @@ async function main() {
     const fps = 75;
     const frameTime = 1000 / fps;
 
-    console.log("\x1b[32m▶ Animation started\x1b[0m");
+    console.log("\x1b[32mAnimation started\x1b[0m");
 
     let hasCompleted = false;
     const interval = setInterval(() => {
