@@ -42,6 +42,7 @@ type Metadata struct {
 	Authors         []string `json:"authors"`
 	FirstCommitDate string   `json:"firstCommitDate"`
 	LastCommitDate  string   `json:"lastCommitDate"`
+	IsMassiveRepo   bool     `json:"isMassiveRepo"`
 }
 
 func main() {
@@ -101,6 +102,20 @@ func main() {
 		}
 	}
 
+	if parser.IsMassiveRepo() {
+		maxCommits := 50000
+		if len(commits) > maxCommits {
+			commits = commits[:maxCommits]
+			fmt.Printf("Truncated commits to first %d for massive repository performance\n", maxCommits)
+		}
+	} else {
+		maxCommits := 200000
+		if len(commits) > maxCommits {
+			commits = commits[:maxCommits]
+			fmt.Printf("Truncated commits to first %d for performance\n", maxCommits)
+		}
+	}
+
 	totalCommits := len(commits)
 	authorSet := make(map[string]bool)
 	for _, c := range commits {
@@ -147,6 +162,7 @@ func main() {
 			Authors:         uniqueAuthors,
 			FirstCommitDate: firstCommitDate,
 			LastCommitDate:  lastCommitDate,
+			IsMassiveRepo:   parser.IsMassiveRepo(),
 		},
 	}
 

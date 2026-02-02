@@ -24,13 +24,15 @@ type Commit struct {
 
 // GitParser handles parsing git repositories
 type GitParser struct {
-	repoPath string
+	repoPath      string
+	isMassiveRepo bool
 }
 
 // NewGitParser creates a new GitParser instance
 func NewGitParser(repoPath string) *GitParser {
 	return &GitParser{
-		repoPath: repoPath,
+		repoPath:      repoPath,
+		isMassiveRepo: false,
 	}
 }
 
@@ -59,8 +61,10 @@ func (gp *GitParser) GetCommits() ([]Commit, error) {
 	const largeRepoThreshold = 100000
 	if commitCount > largeRepoThreshold {
 		fmt.Printf("Large repository detected (%d commits), using optimized approach\n", commitCount)
+		gp.isMassiveRepo = true
 		return gp.getCommitsOptimized()
 	} else {
+		gp.isMassiveRepo = false
 		return gp.getCommitsFull()
 	}
 }
@@ -256,10 +260,9 @@ func (gp *GitParser) parseCommitsWithNumStat(output string) []Commit {
 	return commits
 }
 
-// This method is kept for backward compatibility but is now redundant
-// since GetCommits already populates the Files field
-func (gp *GitParser) GetAllFilesForCommits(commits []Commit) ([]Commit, error) {
-	return commits, nil
+// IsMassiveRepo returns whether the repository is considered massive
+func (gp *GitParser) IsMassiveRepo() bool {
+	return gp.isMassiveRepo
 }
 
 // GetRepoName extracts the repository name from the path

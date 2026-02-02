@@ -1,5 +1,4 @@
-const MAX_PARTICLES = 90;
-
+let MAX_PARTICLES = 90;
 let commits = [];
 let particles = [];
 let staticOutlines = [];
@@ -19,6 +18,7 @@ let edges = [];
 let authorContributionHistory = new Map();
 let languageDistribution = new Map();
 let uniqueFilesSet = new Set();
+let isMassiveRepo = false;
 
 async function init() {
     try {
@@ -26,6 +26,23 @@ async function init() {
         const data = await response.json();
 
         commits = data.commits;
+        isMassiveRepo = data.metadata?.isMassiveRepo || false;
+
+        if (isMassiveRepo) {
+            const sampleRate = Math.ceil(commits.length / 10000);
+            const sampledCommits = [];
+
+            for (let i = 0; i < commits.length; i += sampleRate) {
+                sampledCommits.push(commits[i]);
+            }
+
+            commits = sampledCommits;
+            MAX_PARTICLES = 45;
+            console.log(
+                `Massive repository detected. Using ${sampledCommits.length} commits out of ${data.commits.length} total.`,
+            );
+        }
+
         generateAuthorColors();
 
         setupSVG();
@@ -158,8 +175,11 @@ function createParticlesForCommit(commit) {
         edges = [];
     }
 
-    commit.files.forEach((filename, i) => {
-        const angle = (i / commit.files.length) * Math.PI * 2;
+    const maxFilesPerCommit = isMassiveRepo ? 10 : commit.files.length;
+    const filesToProcess = commit.files.slice(0, maxFilesPerCommit);
+
+    filesToProcess.forEach((filename, i) => {
+        const angle = (i / filesToProcess.length) * Math.PI * 2;
         const elevation = (Math.random() - 0.5) * Math.PI * 0.5;
         const particleSpeed = 1.5 + Math.random() * 1.5;
 
@@ -192,21 +212,23 @@ function createParticlesForCommit(commit) {
         directoryGroups.get(directory).push(particle);
     });
 
-    for (const [directory, particlesInDir] of directoryGroups) {
-        if (particlesInDir.length > 1) {
-            for (let i = 0; i < particlesInDir.length; i++) {
-                for (let j = i + 1; j < particlesInDir.length; j++) {
-                    edges.push({
-                        source: particlesInDir[i],
-                        target: particlesInDir[j],
-                        directory: directory,
-                    });
+    if (!isMassiveRepo) {
+        for (const [directory, particlesInDir] of directoryGroups) {
+            if (particlesInDir.length > 1) {
+                for (let i = 0; i < particlesInDir.length; i++) {
+                    for (let j = i + 1; j < particlesInDir.length; j++) {
+                        edges.push({
+                            source: particlesInDir[i],
+                            target: particlesInDir[j],
+                            directory: directory,
+                        });
+                    }
                 }
             }
         }
     }
 
-    commit.files.forEach((filename) => {
+    filesToProcess.forEach((filename) => {
         uniqueFilesSet.add(filename);
     });
 
@@ -617,7 +639,10 @@ function drawContributionBars() {
     title.textContent = "Contribution Percentages:";
     barsGroup.appendChild(title);
 
-    sortedAuthors.forEach(([author, percentage], index) => {
+    const maxDisplay = 15;
+    const displayAuthors = sortedAuthors.slice(0, maxDisplay);
+
+    displayAuthors.forEach(([author, percentage], index) => {
         const barY = startY + index * (barHeight + barSpacing);
         const color = authorColors.get(author) || "#ffffff";
         const bgBar = document.createElementNS(
@@ -659,6 +684,23 @@ function drawContributionBars() {
         authorText.textContent = `${author}: ${percentage.toFixed(1)}%`;
         barsGroup.appendChild(authorText);
     });
+
+    if (sortedAuthors.length > maxDisplay) {
+        const moreText = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text",
+        );
+        moreText.setAttribute("x", startX);
+        moreText.setAttribute(
+            "y",
+            startY + maxDisplay * (barHeight + barSpacing) + 10,
+        );
+        moreText.setAttribute("fill", "#aaaaaa");
+        moreText.setAttribute("font-family", "monospace");
+        moreText.setAttribute("font-size", "10px");
+        moreText.textContent = `... and ${sortedAuthors.length - maxDisplay} more authors`;
+        barsGroup.appendChild(moreText);
+    }
 }
 
 function drawLanguageDistribution() {
@@ -696,7 +738,7 @@ function drawLanguageDistribution() {
     const barHeight = 15;
     const barSpacing = 5;
     const startX = 20;
-    const startY = 200;
+    const startY = height - 300;
     const title = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "text",
@@ -711,7 +753,10 @@ function drawLanguageDistribution() {
     title.textContent = "Language Distribution:";
     langGroup.appendChild(title);
 
-    sortedLanguages.forEach(([language, percentage], index) => {
+    const maxDisplay = 15;
+    const displayLanguages = sortedLanguages.slice(0, maxDisplay);
+
+    displayLanguages.forEach(([language, percentage], index) => {
         const barY = startY + index * (barHeight + barSpacing);
 
         let color = "#ffffff";
@@ -785,6 +830,23 @@ function drawLanguageDistribution() {
         langText.textContent = `${language}: ${percentage.toFixed(1)}% (${languageDistribution.get(language)?.size || 0} files)`;
         langGroup.appendChild(langText);
     });
+
+    if (sortedLanguages.length > maxDisplay) {
+        const moreText = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text",
+        );
+        moreText.setAttribute("x", startX);
+        moreText.setAttribute(
+            "y",
+            startY + maxDisplay * (barHeight + barSpacing) + 10,
+        );
+        moreText.setAttribute("fill", "#aaaaaa");
+        moreText.setAttribute("font-family", "monospace");
+        moreText.setAttribute("font-size", "10px");
+        moreText.textContent = `... and ${sortedLanguages.length - maxDisplay} more languages`;
+        langGroup.appendChild(moreText);
+    }
 }
 
 function updateStats() {
@@ -829,12 +891,17 @@ function animate(currentTime) {
     }
 
     const deltaTime = currentTime - lastFrameTime;
-    const frameInterval = 1000 / (75 * speed);
+    const baseFPS = isMassiveRepo ? 60 : 75;
+    const frameInterval = 1000 / (baseFPS * speed);
 
     if (deltaTime >= frameInterval) {
         frameCount++;
 
-        const commitInterval = Math.floor(30 / speed);
+        let commitInterval = Math.floor(30 / speed);
+        if (isMassiveRepo) {
+            commitInterval = Math.floor(60 / speed);
+        }
+
         if (
             frameCount % commitInterval === 0 &&
             currentCommitIndex < commits.length
