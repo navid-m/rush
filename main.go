@@ -87,14 +87,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	commitsWithFiles, err := parser.GetAllFilesForCommits(rawCommits)
-	if err != nil {
-		log.Printf("Error getting files for commits: %v", err)
-		os.Exit(1)
-	}
-
-	commits := make([]CommitData, len(commitsWithFiles))
-	for i, commit := range commitsWithFiles {
+	commits := make([]CommitData, len(rawCommits))
+	for i, commit := range rawCommits {
 		commits[i] = CommitData{
 			Hash:         commit.Hash,
 			Author:       commit.Author,

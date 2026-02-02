@@ -52,19 +52,26 @@ func (gp *GitParser) IsValidRepo() bool {
 
 // GetCommits retrieves all commits from the repository
 func (gp *GitParser) GetCommits() ([]Commit, error) {
-	format := "%H|%an|%at|%s"
-	cmd := fmt.Sprintf(`git -C "%s" log --all --format="%s" --shortstat --reverse`, gp.repoPath, format)
+	var output []byte
+	var err error
 
-	output, err := exec.Command("sh", "-c", cmd).Output()
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("git", "-C", gp.repoPath, "log", "--all", "--format=%H|%an|%at|%s", "--shortstat", "--reverse", "--numstat")
+		output, err = cmd.Output()
+	} else {
+		cmd := exec.Command("git", "-C", gp.repoPath, "log", "--all", "--format=%H|%an|%at|%s", "--shortstat", "--reverse", "--numstat")
+		output, err = cmd.Output()
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to read git history: %v", err)
 	}
 
-	return gp.parseCommits(string(output)), nil
+	return gp.parseCommitsWithNumStat(string(output)), nil
 }
 
-// parseCommits parses the git log output into Commit structs
-func (gp *GitParser) parseCommits(output string) []Commit {
+// parseCommitsWithNumStat parses the git log output with numstat into Commit structs
+func (gp *GitParser) parseCommitsWithNumStat(output string) []Commit {
 	lines := strings.Split(output, "\n")
 	commits := []Commit{}
 	var currentCommit *Commit
@@ -75,7 +82,7 @@ func (gp *GitParser) parseCommits(output string) []Commit {
 			continue
 		}
 
-		if strings.Contains(line, "|") {
+		if strings.Contains(line, "|") && !strings.Contains(line, "\t") {
 			if currentCommit != nil {
 				commits = append(commits, *currentCommit)
 			}
@@ -98,33 +105,31 @@ func (gp *GitParser) parseCommits(output string) []Commit {
 					Files:        []string{},
 				}
 			}
-		} else if currentCommit != nil && strings.Contains(line, "changed") {
-			filesMatch := strings.Fields(strings.Split(line, " changed")[0])
-			if len(filesMatch) > 0 {
-				filesChanged, err := strconv.Atoi(filesMatch[0])
-				if err == nil {
-					currentCommit.FilesChanged = filesChanged
-				}
-			}
+		} else if currentCommit != nil {
+			if strings.Contains(line, "\t") {
+				fields := strings.Split(line, "\t")
+				if len(fields) >= 2 {
+					insertions, err1 := strconv.Atoi(strings.TrimSpace(fields[0]))
+					deletions, err2 := strconv.Atoi(strings.TrimSpace(fields[1]))
 
-			insertionsMatch := strings.Split(line, " insertions")
-			if len(insertionsMatch) > 0 {
-				insertionParts := strings.Fields(strings.Split(insertionsMatch[0], "(")[len(strings.Split(insertionsMatch[0], "("))-1])
-				if len(insertionParts) > 0 {
-					insertions, err := strconv.Atoi(insertionParts[0])
-					if err == nil {
-						currentCommit.Insertions = insertions
+					if err1 == nil && err2 == nil {
+						currentCommit.Insertions += insertions
+						currentCommit.Deletions += deletions
+						currentCommit.FilesChanged++
+						filename := strings.TrimSpace(fields[2])
+						if filename != "" {
+							currentCommit.Files = append(currentCommit.Files, filename)
+						}
 					}
 				}
-			}
-
-			deletionsMatch := strings.Split(line, " deletions")
-			if len(deletionsMatch) > 0 {
-				deletionParts := strings.Fields(strings.Split(deletionsMatch[0], "(")[len(strings.Split(deletionsMatch[0], "("))-1])
-				if len(deletionParts) > 0 {
-					deletions, err := strconv.Atoi(deletionParts[0])
+			} else if strings.Contains(line, "changed") {
+				filesMatch := strings.Fields(strings.Split(line, " changed")[0])
+				if len(filesMatch) > 0 {
+					filesChanged, err := strconv.Atoi(filesMatch[0])
 					if err == nil {
-						currentCommit.Deletions = deletions
+						if currentCommit.FilesChanged == 0 {
+							currentCommit.FilesChanged = filesChanged
+						}
 					}
 				}
 			}
@@ -138,41 +143,10 @@ func (gp *GitParser) parseCommits(output string) []Commit {
 	return commits
 }
 
-// GetAllFilesForCommits gets all files associated with each commit
+// This method is kept for backward compatibility but is now redundant
+// since GetCommits already populates the Files field
 func (gp *GitParser) GetAllFilesForCommits(commits []Commit) ([]Commit, error) {
-	batchSize := 100
-
-	for i := 0; i < len(commits); i += batchSize {
-		end := min(i+batchSize, len(commits))
-		batch := commits[i:end]
-		for j := range batch {
-			batch[j].Files = gp.getFilesForCommit(batch[j].Hash)
-		}
-	}
-
 	return commits, nil
-}
-
-// getFilesForCommit gets the files changed in a specific commit
-func (gp *GitParser) getFilesForCommit(hash string) []string {
-	cmd := fmt.Sprintf(`git -C "%s" diff-tree --no-commit-id --name-only -r %s`, gp.repoPath, hash)
-
-	output, err := exec.Command("sh", "-c", cmd).Output()
-	if err != nil {
-		return []string{}
-	}
-
-	files := strings.Split(strings.TrimSpace(string(output)), "\n")
-	result := []string{}
-
-	for _, file := range files {
-		file = strings.TrimSpace(file)
-		if file != "" {
-			result = append(result, file)
-		}
-	}
-
-	return result
 }
 
 // GetRepoName extracts the repository name from the path
