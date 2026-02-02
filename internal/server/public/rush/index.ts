@@ -19,6 +19,12 @@ let authorContributionHistory = new Map();
 let languageDistribution = new Map();
 let uniqueFilesSet = new Set();
 let isMassiveRepo = false;
+let elaborateMode = false;
+let treeNodes = [];
+let branches = [];
+let growthPoints = [];
+let pulseEffects = [];
+let spiralPaths = [];
 
 async function init() {
     try {
@@ -106,6 +112,13 @@ function setupSVG() {
     particlesGroup.setAttribute("class", "particles");
     svg.appendChild(particlesGroup);
 
+    const elaborateGroup = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "g",
+    );
+    elaborateGroup.setAttribute("class", "elaborate");
+    svg.appendChild(elaborateGroup);
+
     container.appendChild(svg);
 }
 
@@ -120,8 +133,43 @@ function setupKeyboardControls() {
             changeSpeed(-0.5);
         } else if (e.code === "KeyR") {
             restartAnimation();
+        } else if (e.code === "KeyE") {
+            toggleElaborateMode();
         }
     });
+}
+
+function toggleElaborateMode() {
+    elaborateMode = !elaborateMode;
+
+    if (elaborateMode) {
+        particles = [];
+        staticOutlines = [];
+        edges = [];
+        treeNodes = [
+            {
+                x: width / 2,
+                y: height - 50,
+                vx: 0,
+                vy: 0,
+                color: "#ffffff",
+                size: 8,
+                isRoot: true,
+            },
+        ];
+        branches = [];
+        growthPoints = [];
+        pulseEffects = [];
+        spiralPaths = [];
+    } else {
+        treeNodes = [];
+        branches = [];
+        growthPoints = [];
+        pulseEffects = [];
+        spiralPaths = [];
+    }
+
+    updateStats();
 }
 
 function togglePause() {
@@ -142,6 +190,11 @@ function restartAnimation() {
     particles = [];
     staticOutlines = [];
     edges = [];
+    treeNodes = [];
+    branches = [];
+    growthPoints = [];
+    pulseEffects = [];
+    spiralPaths = [];
     authorContributionHistory = new Map();
     languageDistribution = new Map();
     currentCommitIndex = 0;
@@ -150,11 +203,140 @@ function restartAnimation() {
     isPaused = false;
     lastFrameTime = performance.now();
     uniqueFilesSet = new Set();
+
+    if (elaborateMode) {
+        treeNodes = [
+            {
+                x: width / 2,
+                y: height - 50,
+                vx: 0,
+                vy: 0,
+                color: "#ffffff",
+                size: 8,
+                isRoot: true,
+            },
+        ];
+    }
+
     animate(lastFrameTime);
     updateStats();
 }
 
 function createParticlesForCommit(commit) {
+    if (elaborateMode) {
+        createElaborateVisualization(commit);
+    } else {
+        createStandardParticles(commit);
+    }
+
+    updateAuthorContributionHistory(commit.author);
+    updateLanguageDistribution(commit);
+}
+
+function createElaborateVisualization(commit) {
+    const fileColors = generateFileColors(commit.files);
+    const authorColor = authorColors.get(commit.author) || "#ffffff";
+    const maxFilesPerCommit = isMassiveRepo ? 10 : commit.files.length;
+    const filesToProcess = commit.files.slice(0, maxFilesPerCommit);
+    const numBranches = Math.min(filesToProcess.length, 5);
+
+    for (let i = 0; i < numBranches; i++) {
+        let parentNode;
+
+        if (treeNodes.length === 0) {
+            parentNode = {
+                x: width / 2,
+                y: height - 50,
+                vx: 0,
+                vy: 0,
+                color: "#ffffff",
+                size: 8,
+                isRoot: true,
+            };
+            treeNodes.push(parentNode);
+        } else {
+            parentNode =
+                treeNodes[
+                    Math.floor(Math.random() * Math.min(treeNodes.length, 20))
+                ];
+        }
+
+        const angle = (Math.random() - 0.5) * Math.PI * 0.8 - Math.PI / 2;
+        const distance = 40 + Math.random() * 60;
+
+        const newNode = {
+            x: parentNode.x + Math.cos(angle) * distance,
+            y: parentNode.y + Math.sin(angle) * distance,
+            vx: Math.cos(angle) * 2,
+            vy: Math.sin(angle) * 2,
+            color: fileColors[i % fileColors.length],
+            authorColor: authorColor,
+            size: 4 + Math.random() * 4,
+            age: 0,
+            filename: filesToProcess[i % filesToProcess.length]
+                .split("/")
+                .pop(),
+            commitHash: commit.hash,
+            isRoot: false,
+        };
+
+        treeNodes.push(newNode);
+
+        branches.push({
+            from: parentNode,
+            to: newNode,
+            color: authorColor,
+            width: 2 + Math.random() * 2,
+            age: 0,
+            maxAge: 120,
+        });
+
+        pulseEffects.push({
+            x: newNode.x,
+            y: newNode.y,
+            radius: 0,
+            maxRadius: 40 + Math.random() * 30,
+            color: fileColors[i % fileColors.length],
+            age: 0,
+            maxAge: 60,
+        });
+
+        if (Math.random() > 0.7) {
+            spiralPaths.push({
+                centerX: newNode.x,
+                centerY: newNode.y,
+                angle: 0,
+                radius: 5,
+                color: authorColor,
+                age: 0,
+                maxAge: 180,
+                points: [],
+            });
+        }
+    }
+
+    if (filesToProcess.length > 3 && Math.random() > 0.5) {
+        const centerNode = treeNodes[treeNodes.length - 1];
+
+        growthPoints.push({
+            x: centerNode.x,
+            y: centerNode.y,
+            petals: filesToProcess.length,
+            color: authorColor,
+            fileColor: fileColors[0],
+            size: 20 + Math.random() * 20,
+            age: 0,
+            maxAge: 150,
+            rotation: Math.random() * Math.PI * 2,
+        });
+    }
+
+    filesToProcess.forEach((filename) => {
+        uniqueFilesSet.add(filename);
+    });
+}
+
+function createStandardParticles(commit) {
     const fileColors = generateFileColors(commit.files);
     const authorColor = authorColors.get(commit.author) || "#ffffff";
     const directoryGroups = new Map();
@@ -231,9 +413,6 @@ function createParticlesForCommit(commit) {
     filesToProcess.forEach((filename) => {
         uniqueFilesSet.add(filename);
     });
-
-    updateAuthorContributionHistory(commit.author);
-    updateLanguageDistribution(commit);
 }
 
 function generateFileColors(filenames) {
@@ -355,6 +534,94 @@ function createGradientColor(fileColor, authorColor) {
 }
 
 function updateParticles() {
+    if (elaborateMode) {
+        updateElaborateElements();
+    } else {
+        updateStandardParticles();
+    }
+}
+
+function updateElaborateElements() {
+    for (let i = branches.length - 1; i >= 0; i--) {
+        const branch = branches[i];
+        branch.age++;
+
+        if (branch.age > branch.maxAge) {
+            branches.splice(i, 1);
+        }
+    }
+
+    for (const node of treeNodes) {
+        if (!node.isRoot) {
+            node.age = (node.age || 0) + 1;
+            node.vx += (Math.random() - 0.5) * 0.1;
+            node.vy += (Math.random() - 0.5) * 0.1;
+            node.vx *= 0.95;
+            node.vy *= 0.95;
+            node.x += node.vx;
+            node.y += node.vy;
+
+            if (node.x < 20) {
+                node.x = 20;
+                node.vx = Math.abs(node.vx);
+            }
+            if (node.x > width - 20) {
+                node.x = width - 20;
+                node.vx = -Math.abs(node.vx);
+            }
+            if (node.y < 20) {
+                node.y = 20;
+                node.vy = Math.abs(node.vy);
+            }
+            if (node.y > height - 20) {
+                node.y = height - 20;
+                node.vy = -Math.abs(node.vy);
+            }
+        }
+    }
+
+    for (let i = pulseEffects.length - 1; i >= 0; i--) {
+        const pulse = pulseEffects[i];
+        pulse.age++;
+        pulse.radius = (pulse.age / pulse.maxAge) * pulse.maxRadius;
+
+        if (pulse.age > pulse.maxAge) {
+            pulseEffects.splice(i, 1);
+        }
+    }
+
+    for (let i = spiralPaths.length - 1; i >= 0; i--) {
+        const spiral = spiralPaths[i];
+        spiral.age++;
+        spiral.angle += 0.15;
+        spiral.radius += 0.5;
+
+        const x = spiral.centerX + Math.cos(spiral.angle) * spiral.radius;
+        const y = spiral.centerY + Math.sin(spiral.angle) * spiral.radius;
+
+        spiral.points.push({ x, y });
+
+        if (spiral.points.length > 60) {
+            spiral.points.shift();
+        }
+
+        if (spiral.age > spiral.maxAge) {
+            spiralPaths.splice(i, 1);
+        }
+    }
+
+    for (let i = growthPoints.length - 1; i >= 0; i--) {
+        const gp = growthPoints[i];
+        gp.age++;
+        gp.rotation += 0.02;
+
+        if (gp.age > gp.maxAge) {
+            growthPoints.splice(i, 1);
+        }
+    }
+}
+
+function updateStandardParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
@@ -418,6 +685,156 @@ function project3D(x, y, z) {
 function render() {
     if (!svg) return;
 
+    if (elaborateMode) {
+        renderElaborate();
+    } else {
+        renderStandard();
+    }
+}
+
+function renderElaborate() {
+    const elaborateGroup = svg.querySelector(".elaborate");
+    if (!elaborateGroup) return;
+
+    while (elaborateGroup.firstChild) {
+        elaborateGroup.removeChild(elaborateGroup.firstChild);
+    }
+
+    for (const branch of branches) {
+        const opacity = 1 - branch.age / branch.maxAge;
+
+        const line = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line",
+        );
+        line.setAttribute("x1", branch.from.x);
+        line.setAttribute("y1", branch.from.y);
+        line.setAttribute("x2", branch.to.x);
+        line.setAttribute("y2", branch.to.y);
+        line.setAttribute("stroke", branch.color);
+        line.setAttribute("stroke-width", branch.width);
+        line.setAttribute("opacity", opacity * 0.7);
+        line.setAttribute("stroke-linecap", "round");
+        elaborateGroup.appendChild(line);
+    }
+
+    for (const spiral of spiralPaths) {
+        if (spiral.points.length < 2) continue;
+
+        const opacity = 1 - spiral.age / spiral.maxAge;
+        let pathData = `M ${spiral.points[0].x} ${spiral.points[0].y}`;
+
+        for (let i = 1; i < spiral.points.length; i++) {
+            pathData += ` L ${spiral.points[i].x} ${spiral.points[i].y}`;
+        }
+
+        const path = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "path",
+        );
+        path.setAttribute("d", pathData);
+        path.setAttribute("stroke", spiral.color);
+        path.setAttribute("stroke-width", "2");
+        path.setAttribute("fill", "none");
+        path.setAttribute("opacity", opacity * 0.8);
+        elaborateGroup.appendChild(path);
+    }
+
+    for (const pulse of pulseEffects) {
+        const opacity = (1 - pulse.age / pulse.maxAge) * 0.5;
+
+        const circle = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle",
+        );
+        circle.setAttribute("cx", pulse.x);
+        circle.setAttribute("cy", pulse.y);
+        circle.setAttribute("r", pulse.radius);
+        circle.setAttribute("fill", "none");
+        circle.setAttribute("stroke", pulse.color);
+        circle.setAttribute("stroke-width", "2");
+        circle.setAttribute("opacity", opacity);
+        elaborateGroup.appendChild(circle);
+    }
+
+    for (const gp of growthPoints) {
+        const progress = gp.age / gp.maxAge;
+        const opacity = Math.sin(progress * Math.PI) * 0.8;
+
+        for (let i = 0; i < gp.petals; i++) {
+            const angle = (i / gp.petals) * Math.PI * 2 + gp.rotation;
+            const petalLength = gp.size * progress;
+            const x1 = gp.x;
+            const y1 = gp.y;
+            const x2 = gp.x + Math.cos(angle) * petalLength;
+            const y2 = gp.y + Math.sin(angle) * petalLength;
+            const line = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line",
+            );
+
+            line.setAttribute("x1", x1);
+            line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2);
+            line.setAttribute("y2", y2);
+            line.setAttribute("stroke", gp.color);
+            line.setAttribute("stroke-width", "2");
+            line.setAttribute("opacity", opacity);
+            elaborateGroup.appendChild(line);
+
+            const circle = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+            );
+            circle.setAttribute("cx", x2);
+            circle.setAttribute("cy", y2);
+            circle.setAttribute("r", 4 + progress * 3);
+            circle.setAttribute("fill", gp.fileColor);
+            circle.setAttribute("opacity", opacity);
+            elaborateGroup.appendChild(circle);
+        }
+    }
+
+    for (const node of treeNodes) {
+        const circle = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle",
+        );
+        circle.setAttribute("cx", node.x);
+        circle.setAttribute("cy", node.y);
+        circle.setAttribute("r", node.size);
+        circle.setAttribute("fill", node.color);
+        circle.setAttribute("opacity", node.isRoot ? 1 : 0.9);
+
+        if (!node.isRoot && node.authorColor) {
+            circle.setAttribute("stroke", node.authorColor);
+            circle.setAttribute("stroke-width", "2");
+        }
+
+        elaborateGroup.appendChild(circle);
+
+        if (!node.isRoot && node.filename && node.age < 200) {
+            const text = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text",
+            );
+            text.setAttribute("x", node.x + node.size + 5);
+            text.setAttribute("y", node.y + 3);
+            text.setAttribute("fill", node.color);
+            text.setAttribute("opacity", Math.max(0, 1 - node.age / 200));
+            text.setAttribute("font-size", "10px");
+            text.setAttribute("font-family", "monospace");
+            text.textContent = node.filename;
+            elaborateGroup.appendChild(text);
+        }
+    }
+
+    drawAuthorLegend();
+    drawContributionBars();
+    drawLanguageDistribution();
+}
+
+function renderStandard() {
     const particlesGroup = svg.querySelector(".particles");
     if (!particlesGroup) return;
 
@@ -545,8 +962,17 @@ function drawAuthorLegend() {
     }
 
     const activeAuthors = new Set();
-    for (const p of particles) {
-        activeAuthors.add(p.author);
+
+    if (elaborateMode) {
+        for (const node of treeNodes) {
+            if (node.author) {
+                activeAuthors.add(node.author);
+            }
+        }
+    } else {
+        for (const p of particles) {
+            activeAuthors.add(p.author);
+        }
     }
 
     const authors = Array.from(activeAuthors);
@@ -856,6 +1282,7 @@ function updateStats() {
     let infoText = `Commits: ${currentCommitIndex}/${commits.length}<br>`;
     infoText += `Files: ${uniqueFilesSet.size}<br>`;
     infoText += `Speed: ${speed.toFixed(1)}x<br>`;
+    infoText += `Mode: ${elaborateMode ? "ELABORATE" : "STANDARD"}<br>`;
 
     if (isPaused) {
         infoText += "Status: PAUSED";
