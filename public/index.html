@@ -129,6 +129,7 @@
     let height = 800;
     let hasCompleted = false;
     let edges = [];
+    let authorContributionHistory = new Map();
 
     async function init() {
       try {
@@ -141,6 +142,8 @@
         setupSVG();
 
         document.getElementById('loading').style.display = 'none';
+
+        authorContributionHistory.set(-1, new Map());
 
         updateStats();
 
@@ -217,6 +220,7 @@
     function restartAnimation() {
       particles = [];
       edges = [];
+      authorContributionHistory = new Map();
       currentCommitIndex = 0;
       frameCount = 0;
       hasCompleted = false;
@@ -277,6 +281,8 @@
           }
         }
       }
+
+      updateAuthorContributionHistory(commit.author);
     }
 
     function generateFileColors(filenames) {
@@ -299,6 +305,26 @@
       });
 
       return colors;
+    }
+
+    function updateAuthorContributionHistory(author) {
+      const authorCounts = new Map();
+      let totalCommits = 0;
+
+      for (let i = 0; i <= currentCommitIndex; i++) {
+        if (commits[i]) {
+          const commitAuthor = commits[i].author;
+          authorCounts.set(commitAuthor, (authorCounts.get(commitAuthor) || 0) + 1);
+          totalCommits++;
+        }
+      }
+
+      const authorPercentages = new Map();
+      for (const [auth, count] of authorCounts) {
+        authorPercentages.set(auth, (count / totalCommits) * 100);
+      }
+
+      authorContributionHistory.set(currentCommitIndex, authorPercentages);
     }
 
     function createGradientColor(fileColor, authorColor) {
@@ -480,6 +506,7 @@
       }
 
       drawAuthorLegend();
+      drawContributionBars();
     }
 
     function drawAuthorLegend() {
@@ -537,6 +564,76 @@
         legendGroup.appendChild(text);
 
         legendY += 18;
+      });
+    }
+
+    function drawContributionBars() {
+      if (!svg) return;
+
+      let barsGroup = svg.querySelector('.contribution-bars');
+      if (!barsGroup) {
+        barsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        barsGroup.setAttribute('class', 'contribution-bars');
+        svg.appendChild(barsGroup);
+      } else {
+        while (barsGroup.firstChild) {
+          barsGroup.removeChild(barsGroup.firstChild);
+        }
+      }
+
+      const currentPercentages = authorContributionHistory.get(currentCommitIndex - 1) || new Map();
+
+      if (currentPercentages.size === 0) return;
+
+      const sortedAuthors = Array.from(currentPercentages.entries()).sort((a, b) => b[1] - a[1]);
+      const barWidth = 150;
+      const barHeight = 15;
+      const barSpacing = 5;
+      const startX = 20;
+      const startY = 50;
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+
+      title.setAttribute('x', startX);
+      title.setAttribute('y', startY - 10);
+      title.setAttribute('fill', '#ffffff');
+      title.setAttribute('font-family', 'monospace');
+      title.setAttribute('font-size', '12px');
+      title.setAttribute('font-weight', 'bold');
+      title.textContent = 'Contribution Percentages:';
+      barsGroup.appendChild(title);
+
+      sortedAuthors.forEach(([author, percentage], index) => {
+        const barY = startY + index * (barHeight + barSpacing);
+        const color = authorColors.get(author) || '#ffffff';
+        const bgBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+
+        bgBar.setAttribute('x', startX);
+        bgBar.setAttribute('y', barY);
+        bgBar.setAttribute('width', barWidth);
+        bgBar.setAttribute('height', barHeight);
+        bgBar.setAttribute('fill', '#333');
+        bgBar.setAttribute('rx', '3');
+        bgBar.setAttribute('ry', '3');
+        barsGroup.appendChild(bgBar);
+
+        const fillBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        fillBar.setAttribute('x', startX);
+        fillBar.setAttribute('y', barY);
+        fillBar.setAttribute('width', (percentage / 100) * barWidth);
+        fillBar.setAttribute('height', barHeight);
+        fillBar.setAttribute('fill', color);
+        fillBar.setAttribute('rx', '3');
+        fillBar.setAttribute('ry', '3');
+        barsGroup.appendChild(fillBar);
+
+        const authorText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        authorText.setAttribute('x', startX + barWidth + 5);
+        authorText.setAttribute('y', barY + barHeight - 3);
+        authorText.setAttribute('fill', color);
+        authorText.setAttribute('font-family', 'monospace');
+        authorText.setAttribute('font-size', '11px');
+        authorText.textContent = `${author}: ${percentage.toFixed(1)}%`;
+        barsGroup.appendChild(authorText);
       });
     }
 
