@@ -128,6 +128,7 @@
     let width = 1200;
     let height = 800;
     let hasCompleted = false;
+    let edges = [];
 
     async function init() {
       try {
@@ -215,6 +216,7 @@
 
     function restartAnimation() {
       particles = [];
+      edges = [];
       currentCommitIndex = 0;
       frameCount = 0;
       hasCompleted = false;
@@ -227,6 +229,7 @@
     function createParticlesForCommit(commit) {
       const fileColors = generateFileColors(commit.files);
       const authorColor = authorColors.get(commit.author) || '#ffffff';
+      const directoryGroups = new Map();
 
       commit.files.forEach((filename, i) => {
         const angle = (i / commit.files.length) * Math.PI * 2;
@@ -249,10 +252,31 @@
           author: commit.author,
           commitHash: commit.hash,
           fileColor: fileColors[i],
+          fullPath: filename,
         };
 
         particles.push(particle);
+
+        const directory = filename.substring(0, filename.lastIndexOf('/')) || '/';
+        if (!directoryGroups.has(directory)) {
+          directoryGroups.set(directory, []);
+        }
+        directoryGroups.get(directory).push(particle);
       });
+
+      for (const [directory, particlesInDir] of directoryGroups) {
+        if (particlesInDir.length > 1) {
+          for (let i = 0; i < particlesInDir.length; i++) {
+            for (let j = i + 1; j < particlesInDir.length; j++) {
+              edges.push({
+                source: particlesInDir[i],
+                target: particlesInDir[j],
+                directory: directory
+              });
+            }
+          }
+        }
+      }
     }
 
     function generateFileColors(filenames) {
@@ -403,6 +427,28 @@
           projScale: proj.scale,
           opacity,
         });
+      }
+
+      const projectedParticleMap = new Map();
+      for (const p of projectedParticles) {
+        projectedParticleMap.set(p.id, p);
+      }
+
+      for (const edge of edges) {
+        const sourceParticle = projectedParticleMap.get(edge.source.id);
+        const targetParticle = projectedParticleMap.get(edge.target.id);
+
+        if (sourceParticle && targetParticle) {
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', sourceParticle.projX);
+          line.setAttribute('y1', sourceParticle.projY);
+          line.setAttribute('x2', targetParticle.projX);
+          line.setAttribute('y2', targetParticle.projY);
+          line.setAttribute('stroke', '#444');
+          line.setAttribute('stroke-width', '1');
+          line.setAttribute('opacity', 0.4);
+          particlesGroup.appendChild(line);
+        }
       }
 
       projectedParticles.sort((a, b) => b.z - a.z);
