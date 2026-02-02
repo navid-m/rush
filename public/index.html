@@ -130,6 +130,7 @@
     let hasCompleted = false;
     let edges = [];
     let authorContributionHistory = new Map();
+    let languageDistribution = new Map();
 
     async function init() {
       try {
@@ -221,6 +222,7 @@
       particles = [];
       edges = [];
       authorContributionHistory = new Map();
+      languageDistribution = new Map();
       currentCommitIndex = 0;
       frameCount = 0;
       hasCompleted = false;
@@ -283,6 +285,7 @@
       }
 
       updateAuthorContributionHistory(commit.author);
+      updateLanguageDistribution(commit);
     }
 
     function generateFileColors(filenames) {
@@ -325,6 +328,22 @@
       }
 
       authorContributionHistory.set(currentCommitIndex, authorPercentages);
+    }
+
+    function updateLanguageDistribution(commit) {
+      for (const file of commit.files) {
+        const parts = file.split('.');
+        if (parts.length > 1) {
+          const ext = '.' + parts[parts.length - 1].toLowerCase();
+          let files = languageDistribution.get(ext) || new Set();
+          files.add(file);
+          languageDistribution.set(ext, files);
+        } else {
+          let files = languageDistribution.get('(no extension)') || new Set();
+          files.add(file);
+          languageDistribution.set('(no extension)', files);
+        }
+      }
     }
 
     function createGradientColor(fileColor, authorColor) {
@@ -507,6 +526,7 @@
 
       drawAuthorLegend();
       drawContributionBars();
+      drawLanguageDistribution();
     }
 
     function drawAuthorLegend() {
@@ -634,6 +654,102 @@
         authorText.setAttribute('font-size', '11px');
         authorText.textContent = `${author}: ${percentage.toFixed(1)}%`;
         barsGroup.appendChild(authorText);
+      });
+    }
+
+    function drawLanguageDistribution() {
+      if (!svg) return;
+
+      let langGroup = svg.querySelector('.language-distribution');
+      if (!langGroup) {
+        langGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        langGroup.setAttribute('class', 'language-distribution');
+        svg.appendChild(langGroup);
+      } else {
+        while (langGroup.firstChild) {
+          langGroup.removeChild(langGroup.firstChild);
+        }
+      }
+
+      if (languageDistribution.size === 0) return;
+
+      let totalFiles = 0;
+      for (const [ext, files] of languageDistribution) {
+        totalFiles += files.size;
+      }
+
+      if (totalFiles === 0) return;
+
+      const languagePercentages = new Map();
+      for (const [ext, files] of languageDistribution) {
+        languagePercentages.set(ext, (files.size / totalFiles) * 100);
+      }
+
+      const sortedLanguages = Array.from(languagePercentages.entries()).sort((a, b) => b[1] - a[1]);
+      const barWidth = 150;
+      const barHeight = 15;
+      const barSpacing = 5;
+      const startX = 20;
+      const startY = 200;
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+
+      title.setAttribute('x', startX);
+      title.setAttribute('y', startY - 10);
+      title.setAttribute('fill', '#ffffff');
+      title.setAttribute('font-family', 'monospace');
+      title.setAttribute('font-size', '12px');
+      title.setAttribute('font-weight', 'bold');
+      title.textContent = 'Language Distribution:';
+      langGroup.appendChild(title);
+
+      sortedLanguages.forEach(([language, percentage], index) => {
+        const barY = startY + index * (barHeight + barSpacing);
+
+        let color = '#ffffff';
+        if (language !== '(no extension)') {
+          let hash = 0;
+          for (let i = 0; i < language.length; i++) {
+            hash = language.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+            '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+            '#A3E4D7', '#FAD7A0', '#D5A6BD', '#AED6F1', '#A9DFBF'
+          ];
+          color = colors[Math.abs(hash) % colors.length];
+        } else {
+          color = '#7f7f7f';
+        }
+
+        const bgBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bgBar.setAttribute('x', startX);
+        bgBar.setAttribute('y', barY);
+        bgBar.setAttribute('width', barWidth);
+        bgBar.setAttribute('height', barHeight);
+        bgBar.setAttribute('fill', '#333');
+        bgBar.setAttribute('rx', '3');
+        bgBar.setAttribute('ry', '3');
+        langGroup.appendChild(bgBar);
+
+        const fillBar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        fillBar.setAttribute('x', startX);
+        fillBar.setAttribute('y', barY);
+        fillBar.setAttribute('width', (percentage / 100) * barWidth);
+        fillBar.setAttribute('height', barHeight);
+        fillBar.setAttribute('fill', color);
+        fillBar.setAttribute('rx', '3');
+        fillBar.setAttribute('ry', '3');
+        langGroup.appendChild(fillBar);
+
+        const langText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        langText.setAttribute('x', startX + barWidth + 5);
+        langText.setAttribute('y', barY + barHeight - 3);
+        langText.setAttribute('fill', color);
+        langText.setAttribute('font-family', 'monospace');
+        langText.setAttribute('font-size', '11px');
+        langText.textContent = `${language}: ${percentage.toFixed(1)}% (${languageDistribution.get(language)?.size || 0} files)`;
+        langGroup.appendChild(langText);
       });
     }
 
