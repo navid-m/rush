@@ -17,6 +17,7 @@ interface Particle {
     filename: string;
     author: string;
     commitHash: string;
+    fileColor: string;
 }
 
 export class Visualizer {
@@ -121,7 +122,8 @@ export class Visualizer {
     }
 
     private createParticlesForCommit(commit: Commit): void {
-        const color = this.authorColors.get(commit.author) || "#ffffff";
+        const fileColors = this.generateFileColors(commit.files);
+        const authorColor = this.authorColors.get(commit.author) || "#ffffff";
 
         commit.files.forEach((filename, i) => {
             const angle = (i / commit.files.length) * Math.PI * 2;
@@ -136,15 +138,86 @@ export class Visualizer {
                 vx: Math.cos(angle) * Math.cos(elevation) * speed,
                 vy: Math.sin(elevation) * speed,
                 vz: Math.sin(angle) * Math.cos(elevation) * speed,
-                color,
-                size: 3 + Math.random() * 2,
+                color: this.createGradientColor(fileColors[i], authorColor),
+                size: 6 + Math.random() * 5,
                 age: 0,
                 maxAge: 120 + Math.random() * 80,
                 filename: filename.split("/").pop() || filename,
                 author: commit.author,
                 commitHash: commit.hash,
+                fileColor: fileColors[i],
             });
         });
+    }
+
+    private generateFileColors(filenames: string[]): string[] {
+        const colors: string[] = [];
+        const modernColorPalette = [
+            "#FF6B6B",
+            "#4ECDC4",
+            "#45B7D1",
+            "#96CEB4",
+            "#FFEAA7",
+            "#DDA0DD",
+            "#98D8C8",
+            "#F7DC6F",
+            "#BB8FCE",
+            "#85C1E9",
+            "#F8C471",
+            "#82E0AA",
+            "#F1948A",
+            "#85C1E9",
+            "#D7BDE2",
+            "#A3E4D7",
+            "#FAD7A0",
+            "#D5A6BD",
+            "#AED6F1",
+            "#A9DFBF",
+        ];
+
+        filenames.forEach((filename, index) => {
+            const ext = filename.split(".").pop()?.toLowerCase() || "";
+            let hash = 0;
+            for (let i = 0; i < filename.length; i++) {
+                hash = filename.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const colorIndex = Math.abs(hash) % modernColorPalette.length;
+            colors.push(modernColorPalette[colorIndex]);
+        });
+
+        return colors;
+    }
+
+    private createGradientColor(
+        fileColor: string,
+        authorColor: string,
+    ): string {
+        const gradientId = `gradient-${fileColor.replace("#", "")}-${authorColor.replace("#", "")}`;
+        const existingGradient = this.svg.select(`#${gradientId}`);
+        if (!existingGradient.empty()) {
+            return `url(#${gradientId})`;
+        }
+
+        const defs = this.svg.select("defs");
+        const gradient = defs
+            .append("radialGradient")
+            .attr("id", gradientId)
+            .attr("cx", "30%")
+            .attr("cy", "30%")
+            .attr("r", "70%");
+        gradient
+            .append("stop")
+            .attr("offset", "0%")
+            .attr("stop-color", fileColor)
+            .attr("stop-opacity", "0.95");
+
+        gradient
+            .append("stop")
+            .attr("offset", "100%")
+            .attr("stop-color", authorColor)
+            .attr("stop-opacity", "0.85");
+
+        return `url(#${gradientId})`;
     }
 
     private updateParticles(): void {
@@ -234,16 +307,9 @@ export class Visualizer {
                 const opacity = ageFactor * 0.9;
                 return opacity > 0.1 ? opacity : 0;
             })
-            .attr("stroke", "#fff")
-            .attr("stroke-width", (d: Particle) => {
-                const proj = this.project3D(d.x, d.y, d.z);
-                return 0.5 * proj.scale;
-            })
-            .attr("stroke-opacity", (d: Particle) => {
-                const ageFactor = 1 - d.age / d.maxAge;
-                const opacity = ageFactor * 0.9;
-                return opacity > 0.1 ? opacity * 0.5 : 0;
-            });
+            .attr("stroke", "none")
+            .attr("stroke-width", 0)
+            .attr("stroke-opacity", 0);
 
         const texts = particleGroup.selectAll("text.label").data(
             visibleParticles.filter(
@@ -276,7 +342,7 @@ export class Visualizer {
                 const proj = this.project3D(d.x, d.y, d.z);
                 return proj.y - (d.size + 2) * proj.scale;
             })
-            .attr("fill", (d: Particle) => d.color)
+            .attr("fill", (d: Particle) => d.fileColor)
             .attr("opacity", (d: Particle) => {
                 const ageFactor = 1 - d.age / d.maxAge;
                 const opacity = ageFactor * 0.9;
