@@ -35,7 +35,7 @@ async function main() {
         process.exit(1);
     }
 
-    console.log(`\x1b[32m✓\x1b[0m Found ${commits.length} commits\n`);
+    console.log(`\x1b[32m\x1b[0m Found ${commits.length} commits\n`);
 
     const visualizer = new Visualizer(commits);
 
