@@ -2,7 +2,9 @@
   "name": "rush",
   "module": "src/index.ts",
   "type": "module",
-  "private": true,
+  "bin": {
+    "rush": "src/index.ts"
+  },
   "scripts": {
     "start": "bun run src/index.ts",
     "generate": "bun run src/data-generator.ts",
