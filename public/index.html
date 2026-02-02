@@ -24,7 +24,6 @@
 
     #animation {
       border: 2px solid #333;
-      box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
       background: radial-gradient(circle at center, #0a0a0a 0%, #000000 100%);
       will-change: contents;
     }
@@ -39,8 +38,8 @@
 
     button {
       background: #222;
-      color: #0ff;
-      border: 1px solid #0ff;
+      color: rgb(161, 162, 207);
+      border: 1px solid rgb(87, 88, 88);
       padding: 8px 16px;
       margin: 0 5px;
       cursor: pointer;
@@ -107,10 +106,10 @@
   <div id="container">
     <div id="animation"></div>
     <div id="controls">
-      <button onclick="togglePause()">⏯ Pause/Resume <span class="key">SPACE</span></button>
-      <button onclick="changeSpeed(-0.5)">⏪ Slower <span class="key">-</span></button>
-      <button onclick="changeSpeed(0.5)">⏩ Faster <span class="key">+</span></button>
-      <button onclick="restartAnimation()">🔄 Restart <span class="key">R</span></button>
+      <button onclick="togglePause()">Pause/Resume <span class="key">SPACE</span></button>
+      <button onclick="changeSpeed(-0.5)">Slower <span class="key">-</span></button>
+      <button onclick="changeSpeed(0.5)">Faster <span class="key">+</span></button>
+      <button onclick="restartAnimation()">Restart <span class="key">R</span></button>
     </div>
   </div>
 
