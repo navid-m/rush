@@ -2,7 +2,6 @@ import { resolve } from "path";
 import { GitParser } from "./git-parser";
 import { StaticFileServer } from "./static-server";
 import { writeFileSync } from "fs";
-import { dgMain } from "./data-generator";
 
 interface CommitData {
     hash: string;
@@ -45,24 +44,25 @@ async function main() {
         process.exit(1);
     }
 
-    const commits: CommitData[] = rawCommits.map((commit) => ({
-        ...commit,
-        date: commit.date.toISOString(),
-    }));
+    const dataPromise = (async () => {
+        const commitsWithFiles = await parser.getAllFilesForCommits(rawCommits);
+        const commits = commitsWithFiles.map((commit) => ({
+            ...commit,
+            date: commit.date.toISOString(),
+        }));
+        const totalCommits = commits.length;
+        const authors = new Set(commits.map((c) => c.author)).size;
+        const firstCommit = new Date(commits[0]?.date);
+        const lastCommit = new Date(commits[commits.length - 1]?.date);
+        const duration =
+            lastCommit && firstCommit
+                ? Math.floor(
+                      (lastCommit.getTime() - firstCommit.getTime()) /
+                          (1000 * 60 * 60 * 24),
+                  )
+                : 0;
 
-    const totalCommits = commits.length;
-    const authors = new Set(commits.map((c) => c.author)).size;
-    const firstCommit = new Date(commits[0]?.date);
-    const lastCommit = new Date(commits[commits.length - 1]?.date);
-    const duration =
-        lastCommit && firstCommit
-            ? Math.floor(
-                  (lastCommit.getTime() - firstCommit.getTime()) /
-                      (1000 * 60 * 60 * 24),
-              )
-            : 0;
-
-    console.log(`
+        console.log(`
 Total Commits: ${totalCommits}
 Contributors: ${authors}
 First Commit: ${firstCommit?.toLocaleDateString()}
@@ -70,20 +70,21 @@ Last Commit: ${lastCommit?.toLocaleDateString()}
 Duration: ${duration} days
 `);
 
-    const jsonData = {
-        commits: commits,
-        metadata: {
-            totalCommits: commits.length,
-            authors: [...new Set(commits.map((c) => c.author))],
-            firstCommitDate: commits[0]?.date,
-            lastCommitDate: commits[commits.length - 1]?.date,
-        },
-    };
+        const jsonData = {
+            commits: commits,
+            metadata: {
+                totalCommits: commits.length,
+                authors: [...new Set(commits.map((c) => c.author))],
+                firstCommitDate: commits[0]?.date,
+                lastCommitDate: commits[commits.length - 1]?.date,
+            },
+        };
 
-    writeFileSync("./commits-data.json", JSON.stringify(jsonData, null, 2));
+        writeFileSync("./commits-data.json", JSON.stringify(jsonData, null, 2));
+    })();
 
     const server = new StaticFileServer();
-    const port = await server.start();
+    const port = await server.start(dataPromise);
 
     console.log(
         `\x1b[32m\x1b[0mServer running at \x1b[1mhttp://localhost:${port}\x1b[0m\n`,
@@ -115,4 +116,4 @@ Duration: ${duration} days
     setTimeout(openBrowser, 200);
 }
 
-dgMain().then(main().catch(console.error));
+main().catch(console.error);

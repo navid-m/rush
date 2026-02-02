@@ -33,30 +33,9 @@ export class GitParser {
                 encoding: "utf-8",
                 maxBuffer: 10 * 1024 * 1024,
             });
-            const commits = this.parseCommits(output);
-
-            for (const commit of commits) {
-                commit.files = this.getFilesForCommit(commit.hash);
-            }
-
-            return commits;
+            return this.parseCommits(output);
         } catch (error) {
             throw new Error(`Failed to read git history: ${error}`);
-        }
-    }
-
-    private getFilesForCommit(hash: string): string[] {
-        try {
-            const output = execSync(
-                `git -C "${this.repoPath}" diff-tree --no-commit-id --name-only -r ${hash}`,
-                { encoding: "utf-8" },
-            );
-            return output
-                .trim()
-                .split("\n")
-                .filter((f) => f.length > 0);
-        } catch {
-            return [];
         }
     }
 
@@ -103,6 +82,37 @@ export class GitParser {
         }
 
         return commits;
+    }
+
+    async getAllFilesForCommits(commits: Commit[]): Promise<Commit[]> {
+        const batchSize = 100;
+
+        for (let i = 0; i < commits.length; i += batchSize) {
+            const batch = commits.slice(i, i + batchSize);
+            for (const commit of batch) {
+                commit.files = this.getFilesForCommit(commit.hash);
+            }
+            if (i % (batchSize * 2) === 0) {
+                await new Promise((resolve) => setImmediate(resolve));
+            }
+        }
+
+        return commits;
+    }
+
+    private getFilesForCommit(hash: string): string[] {
+        try {
+            const output = execSync(
+                `git -C "${this.repoPath}" diff-tree --no-commit-id --name-only -r ${hash}`,
+                { encoding: "utf-8" },
+            );
+            return output
+                .trim()
+                .split("\n")
+                .filter((f) => f.length > 0);
+        } catch {
+            return [];
+        }
     }
 
     getRepoName(): string {

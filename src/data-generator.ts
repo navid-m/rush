@@ -51,8 +51,10 @@ export class DataGenerator {
 
         try {
             const rawCommits = await parser.getCommits();
+            const commitsWithFiles =
+                await parser.getAllFilesForCommits(rawCommits);
 
-            this.commits = rawCommits.map((commit) => ({
+            this.commits = commitsWithFiles.map((commit) => ({
                 ...commit,
                 date: commit.date.toISOString(),
             }));

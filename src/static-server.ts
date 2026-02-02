@@ -3,8 +3,23 @@ import type { Server } from "bun";
 export class StaticFileServer {
     private server: Server | null = null;
     private port = 3000;
+    private dataReady = false;
+    private dataPromise: Promise<any> | null = null;
 
-    async start(): Promise<number> {
+    async start(dataPromise?: Promise<any>): Promise<number> {
+        if (dataPromise) {
+            this.dataPromise = dataPromise;
+            this.dataPromise
+                .then(() => {
+                    this.dataReady = true;
+                })
+                .catch(() => {
+                    this.dataReady = true;
+                });
+        }
+
+        const self = this;
+
         this.server = Bun.serve({
             port: this.port,
             async fetch(request) {
@@ -34,6 +49,10 @@ export class StaticFileServer {
                 }
 
                 if (url.pathname === "/commits-data.json") {
+                    if (!self.dataReady && self.dataPromise) {
+                        await self.dataPromise.catch(() => {});
+                    }
+
                     try {
                         const file = Bun.file("./commits-data.json");
                         const exists = await file.exists();
