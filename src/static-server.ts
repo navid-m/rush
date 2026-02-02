@@ -12,8 +12,10 @@ export class StaticFileServer {
 
                 if (url.pathname === "/" || url.pathname === "/index.html") {
                     try {
-                        const file = Bun.file("./public/index.html");
-                        const exists = await file.exists();
+                        const file: Bun.BunFile = Bun.file(
+                            "./public/index.html",
+                        );
+                        const exists: boolean = await file.exists();
 
                         if (exists) {
                             return new Response(await file.text(), {
@@ -24,7 +26,7 @@ export class StaticFileServer {
                                 status: 404,
                             });
                         }
-                    } catch (error) {
+                    } catch (error: Error) {
                         return new Response("Internal server error", {
                             status: 500,
                         });
@@ -48,7 +50,7 @@ export class StaticFileServer {
                                 status: 404,
                             });
                         }
-                    } catch (error) {
+                    } catch (error: Error) {
                         return new Response("Internal server error", {
                             status: 500,
                         });
@@ -93,7 +95,7 @@ export class StaticFileServer {
                                 status: 404,
                             });
                         }
-                    } catch (error) {
+                    } catch (error: Error) {
                         return new Response("Internal server error", {
                             status: 500,
                         });
