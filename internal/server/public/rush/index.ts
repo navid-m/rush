@@ -19,7 +19,7 @@ let authorContributionHistory = new Map();
 let languageDistribution = new Map();
 let uniqueFilesSet = new Set();
 let isMassiveRepo = false;
-let elaborateMode = false;
+let elaborateMode = true;
 let treeNodes = [];
 let branches = [];
 let growthPoints = [];
@@ -142,6 +142,8 @@ function setupKeyboardControls() {
 function toggleElaborateMode() {
     elaborateMode = !elaborateMode;
 
+    clearSVGElements();
+
     if (elaborateMode) {
         particles = [];
         staticOutlines = [];
@@ -170,6 +172,44 @@ function toggleElaborateMode() {
     }
 
     updateStats();
+}
+
+function clearSVGElements() {
+    const particlesGroup = svg.querySelector(".particles");
+    const elaborateGroup = svg.querySelector(".elaborate");
+    const legendGroup = svg.querySelector(".legend");
+    const barsGroup = svg.querySelector(".contribution-bars");
+    const langGroup = svg.querySelector(".language-distribution");
+
+    if (particlesGroup) {
+        while (particlesGroup.firstChild) {
+            particlesGroup.removeChild(particlesGroup.firstChild);
+        }
+    }
+
+    if (elaborateGroup) {
+        while (elaborateGroup.firstChild) {
+            elaborateGroup.removeChild(elaborateGroup.firstChild);
+        }
+    }
+
+    if (legendGroup) {
+        while (legendGroup.firstChild) {
+            legendGroup.removeChild(legendGroup.firstChild);
+        }
+    }
+
+    if (barsGroup) {
+        while (barsGroup.firstChild) {
+            barsGroup.removeChild(barsGroup.firstChild);
+        }
+    }
+
+    if (langGroup) {
+        while (langGroup.firstChild) {
+            langGroup.removeChild(langGroup.firstChild);
+        }
+    }
 }
 
 function togglePause() {
@@ -203,6 +243,8 @@ function restartAnimation() {
     isPaused = false;
     lastFrameTime = performance.now();
     uniqueFilesSet = new Set();
+
+    clearSVGElements();
 
     if (elaborateMode) {
         treeNodes = [
@@ -1282,7 +1324,7 @@ function updateStats() {
     let infoText = `Commits: ${currentCommitIndex}/${commits.length}<br>`;
     infoText += `Files: ${uniqueFilesSet.size}<br>`;
     infoText += `Speed: ${speed.toFixed(1)}x<br>`;
-    infoText += `Mode: ${elaborateMode ? "ELABORATE" : "STANDARD"}<br>`;
+    infoText += `Mode: ${elaborateMode ? "TREE" : "STANDARD"}<br>`;
 
     if (isPaused) {
         infoText += "Status: PAUSED";
