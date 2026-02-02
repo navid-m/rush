@@ -233,26 +233,69 @@
         const angle = (i / commit.files.length) * Math.PI * 2;
         const elevation = (Math.random() - 0.5) * Math.PI * 0.5;
         const particleSpeed = 1.5 + Math.random() * 1.5;
+        const directory = filename.substring(0, filename.lastIndexOf('/')) || '/';
+        const existingParticleIndex = particles.findIndex(p => p.filename === (filename.split('/').pop() || filename));
 
-        const particle = {
-          id: `${commit.hash}-${filename}`,
-          x: 0,
-          y: 0,
-          z: 0,
-          vx: Math.cos(angle) * Math.cos(elevation) * particleSpeed,
-          vy: Math.sin(elevation) * particleSpeed,
-          vz: Math.sin(angle) * Math.cos(elevation) * particleSpeed,
-          color: createGradientColor(fileColors[i], authorColor),
-          size: 6 + Math.random() * 5,
-          age: 0,
-          maxAge: Infinity,
-          filename: filename.split('/').pop() || filename,
-          author: commit.author,
-          commitHash: commit.hash,
-          fileColor: fileColors[i],
-        };
+        if (existingParticleIndex !== -1) {
+          const existingParticle = particles[existingParticleIndex];
 
-        particles.push(particle);
+          existingParticle.prevX = existingParticle.x;
+          existingParticle.prevY = existingParticle.y;
+          existingParticle.prevZ = existingParticle.z;
+
+          existingParticle.targetX = 0;
+          existingParticle.targetY = 0;
+          existingParticle.targetZ = 0;
+          existingParticle.targetVx = Math.cos(angle) * Math.cos(elevation) * particleSpeed;
+          existingParticle.targetVy = Math.sin(elevation) * particleSpeed;
+          existingParticle.targetVz = Math.sin(angle) * Math.cos(elevation) * particleSpeed;
+          existingParticle.shouldInterpolate = true;
+          existingParticle.color = createGradientColor(fileColors[i], authorColor);
+          existingParticle.size = 6 + Math.random() * 5;
+          existingParticle.age = 0;
+          existingParticle.author = commit.author;
+          existingParticle.commitHash = commit.hash;
+          existingParticle.fileColor = fileColors[i];
+          existingParticle.directory = directory;
+        } else {
+          const startX = 0;
+          const startY = 0;
+          const startZ = 0;
+          const startVx = Math.cos(angle) * Math.cos(elevation) * particleSpeed;
+          const startVy = Math.sin(elevation) * particleSpeed;
+          const startVz = Math.sin(angle) * Math.cos(elevation) * particleSpeed;
+
+          const particle = {
+            id: `${commit.hash}-${filename}`,
+            x: startX,
+            y: startY,
+            z: startZ,
+            vx: startVx,
+            vy: startVy,
+            vz: startVz,
+            prevX: startX,
+            prevY: startY,
+            prevZ: startZ,
+            targetX: startX,
+            targetY: startY,
+            targetZ: startZ,
+            targetVx: startVx,
+            targetVy: startVy,
+            targetVz: startVz,
+            shouldInterpolate: false,
+            color: createGradientColor(fileColors[i], authorColor),
+            size: 6 + Math.random() * 5,
+            age: 0,
+            maxAge: Infinity,
+            filename: filename.split('/').pop() || filename,
+            author: commit.author,
+            commitHash: commit.hash,
+            fileColor: fileColors[i],
+            directory: directory
+          };
+
+          particles.push(particle);
+        }
       });
     }
 
@@ -314,14 +357,95 @@
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
 
+        if (p.shouldInterpolate) {
+          const interpolationFactor = 0.05;
+          p.x = p.x * (1 - interpolationFactor) + p.targetX * interpolationFactor;
+          p.y = p.y * (1 - interpolationFactor) + p.targetY * interpolationFactor;
+          p.z = p.z * (1 - interpolationFactor) + p.targetZ * interpolationFactor;
+
+          const distToTarget = Math.sqrt(
+            Math.pow(p.x - p.targetX, 2) +
+            Math.pow(p.y - p.targetY, 2) +
+            Math.pow(p.z - p.targetZ, 2)
+          );
+
+          if (distToTarget < 0.1) {
+            p.x = p.targetX;
+            p.y = p.targetY;
+            p.z = p.targetZ;
+            p.vx = p.targetVx;
+            p.vy = p.targetVy;
+            p.vz = p.targetVz;
+            p.shouldInterpolate = false;
+          }
+        }
+
+        p.vy += 0.02;
+
         p.x += p.vx;
         p.y += p.vy;
         p.z += p.vz;
-        p.vy += 0.02;
+
         p.vx *= 0.99;
         p.vy *= 0.99;
         p.vz *= 0.99;
 
+        const proj = project3D(p.x, p.y, p.z);
+
+        const threshold = height - (p.size * proj.scale) - 10;
+        if (proj.y >= threshold) {
+          p.vy = -Math.abs(p.vy) * 0.7;
+          const overshoot = proj.y - threshold;
+          if (overshoot > 0) {
+            const correctionFactor = (p.size * proj.scale) / (p.size * 0.5);
+            p.y -= overshoot * correctionFactor;
+          }
+
+          p.vx += (Math.random() - 0.5) * 0.1;
+
+          if (Math.abs(p.vy) < 0.05) {
+            p.vy = 0;
+          }
+        }
+      }
+
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const p1 = particles[i];
+          const p2 = particles[j];
+
+          if (p1.filename !== p2.filename) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dz = p2.z - p1.z;
+            const distanceSquared = dx * dx + dy * dy + dz * dz;
+
+            const minDistance = (p1.size + p2.size) * 1.5;
+            if (distanceSquared < minDistance * minDistance) {
+              const distance = Math.sqrt(distanceSquared);
+              if (distance === 0) {
+                p1.x += (Math.random() - 0.5) * 0.1;
+                p1.y += (Math.random() - 0.5) * 0.1;
+                p1.z += (Math.random() - 0.5) * 0.1;
+                continue;
+              }
+
+              const nx = dx / distance;
+              const ny = dy / distance;
+              const nz = dz / distance;
+
+              const overlap = minDistance - distance;
+              const moveDistance = overlap / 2;
+              p1.x -= nx * moveDistance;
+              p1.y -= ny * moveDistance;
+              p1.z -= nz * moveDistance;
+
+              p2.x += nx * moveDistance;
+              p2.y += ny * moveDistance;
+              p2.z += nz * moveDistance;
+            }
+          }
+        }
       }
     }
 
@@ -373,6 +497,8 @@
 
       projectedParticles.sort((a, b) => b.z - a.z);
 
+      drawDirectoryEdges(projectedParticles, particlesGroup);
+
       for (const p of projectedParticles) {
         const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
         circle.setAttribute('cx', p.projX);
@@ -400,6 +526,55 @@
       }
 
       drawAuthorLegend();
+    }
+
+    function drawDirectoryEdges(projectedParticles, particlesGroup) {
+      const particlesByDirectory = new Map();
+
+      for (const p of projectedParticles) {
+        if (!particlesByDirectory.has(p.directory)) {
+          particlesByDirectory.set(p.directory, []);
+        }
+        particlesByDirectory.get(p.directory).push(p);
+      }
+
+      const allLines = [];
+
+      particlesByDirectory.forEach((particles, directory) => {
+        if (particles.length > 1) {
+          for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+              allLines.push({
+                source: particles[i],
+                target: particles[j],
+                directory: directory
+              });
+            }
+          }
+        }
+      });
+
+      for (const line of allLines) {
+        const svgLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        svgLine.setAttribute('class', 'connection');
+        svgLine.setAttribute('x1', line.source.projX);
+        svgLine.setAttribute('y1', line.source.projY);
+        svgLine.setAttribute('x2', line.target.projX);
+        svgLine.setAttribute('y2', line.target.projY);
+
+        let hash = 0;
+        for (let i = 0; i < line.directory.length; i++) {
+          hash = line.directory.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = Math.abs(hash) % 360;
+        const color = `hsl(${hue}, 70%, 60%)`;
+
+        svgLine.setAttribute('stroke', color);
+        svgLine.setAttribute('stroke-width', '1');
+        svgLine.setAttribute('stroke-opacity', '0.3');
+
+        particlesGroup.insertBefore(svgLine, particlesGroup.firstChild); // Insert behind particles
+      }
     }
 
     function drawAuthorLegend() {
